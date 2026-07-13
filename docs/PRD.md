@@ -103,7 +103,7 @@ Convention: **[fast]** = zero-LLM deterministic path (CI-critical); **[llm]** = 
 | REQ-P3 | Max stable concurrent connections before error-rate threshold breached. | [net] | v0.1 |
 | REQ-P4 | Graceful-degradation check — does the server slow, error cleanly, or crash under load? | [net] | v0.1 |
 | REQ-P5 | Connection / file-descriptor leak detection over sustained load. | [net] | v0.1 |
-| REQ-P6 | Reuse stampede's **concurrency-core** as the load engine (shared primitive). | [net] | v0.1 |
+| REQ-P6 | Reuse stampede's **concurrency-core** — import its `Scheduler` / `Executor` **Protocol** (the binding contract) as the load engine. | [net] | v0.1 |
 | REQ-P7 ⊕ | Cold-start / first-response latency measurement (matters for stdio servers that fetch deps on first run). | [net] | v0.2 |
 
 ### 4.5 Security-lite family ([fast] built-in; [net] integration)
@@ -217,7 +217,7 @@ Each family produces a 0–100 sub-score; the overall score is a weighted mean, 
 ## 10. Dependencies
 
 - **External:** official MCP SDK (Python); a tokenizer + provider `count_tokens` (Anthropic SDK / OpenAI-compatible); Ollama (optional local model); mcp-scan and Cisco mcp-scanner CLIs (optional, `--deep-security`).
-- **Internal (shared primitives, vendored):** concurrency-core (load engine), report-renderer (oxblood report), trace-format (traces + handoff), persona-pack (minimal `naive` persona for legibility).
+- **Internal (shared primitives, vendored — bound to stampede's authoritative contracts):** concurrency-core via its `Scheduler`/`Executor` **Protocol** (load engine); report-renderer rendering the shared **`RunReport`** model (oxblood); **trace-format = the OpenTelemetry GenAI semantic-conventions profile** (`gen_ai.*` + `swarmproof.*` extension), *not* a bespoke schema; persona-pack (`apiVersion: swarmproof.dev/persona/v1`) for the minimal `naive` legibility persona.
 - **Downstream consumer:** stampede (`--from-probe`), costbomb (Cost substrate seeds).
 
 ---

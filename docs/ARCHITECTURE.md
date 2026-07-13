@@ -102,7 +102,7 @@ class FamilyScore:
     findings: list[Finding]
 
 @dataclass
-class Report:
+class Report:                      # rendered via the shared `RunReport` model (report-renderer)
     overall_score: float
     overall_grade: str
     families: dict[str, FamilyScore]
@@ -121,7 +121,7 @@ class CheckEngine(Protocol):
     async def run(self, ctx: ProbeContext) -> FamilyScore: ...
 
 # ProbeContext carries: ServerSurface, an optional live MCPClient, config,
-# the model provider (if any), the trace sink, and the loaded snapshot baseline.
+# the model provider (if any), the trace sink (OTel GenAI profile: gen_ai.* + swarmproof.*), and the loaded snapshot baseline.
 ```
 
 Adding a sixth family (or a plugin) = implement `CheckEngine` and register it. (pytest-plugin ergonomics.)
@@ -178,7 +178,7 @@ The negotiated `protocol_version` and which paths succeeded become **Contract fi
 - **Score:** budget-relative — a lean server (≤~2k toolset tokens) scores ~100; degrades toward single digits at GitHub-scale (~55k).
 
 ### 4.4 Performance engine `[net]` — reuses **concurrency-core**
-- Built on stampede's **concurrency-core** (asyncio swarm scheduler) — mcp-probe is a *thin, adversarially-simple* consumer: instead of heterogeneous persona agents, it drives **uniform MCP clients** issuing real JSON-RPC calls over persistent connections.
+- Built on stampede's **concurrency-core** — mcp-probe imports its `Scheduler` / `Executor` **Protocol** (the binding contract) and is a *thin, adversarially-simple* consumer: instead of heterogeneous persona agents, it schedules **uniform MCP-client tasks** issuing real JSON-RPC calls over persistent connections, under a configurable concurrency curve.
 - **Concurrency curve** (REQ-P2): ramp → hold → spike, configurable; records p50/p95/p99 per tool and overall.
 - **Max stable concurrency** (REQ-P3): binary-search / step up until error-rate threshold breached.
 - **Degradation grade** (REQ-P4): classify behavior under load — *graceful* (slows), *clean-fail* (proper JSON-RPC errors), or *crash* (connection drops / non-conformant).
@@ -234,7 +234,7 @@ Legibility is the differentiator and the riskiest engine (LLM cost + flakiness).
 ```
 
 **Small-model comprehension scoring (REQ-L1).**
-- A minimal `naive` **persona** (reused from persona-pack) is given a natural-language goal and the toolset (names+descriptions only — no bodies), and must pick the single tool it would call. We measure **right-tool-selection rate**. This is a scoped, single-decision task — cheap and reliable on small models, unlike full task execution.
+- A minimal `naive` **persona** (from persona-pack, `apiVersion: swarmproof.dev/persona/v1`) is given a natural-language goal and the toolset (names+descriptions only — no bodies), and must pick the single tool it would call. We measure **right-tool-selection rate**. This is a scoped, single-decision task — cheap and reliable on small models, unlike full task execution.
 - **Goals** come from two sources: (a) an author-provided seed set, or (b) LLM-generated from each tool's own description (each tool implies ≥1 goal it *should* win). Goal-set is **versioned** (`goal_set_version`) so scores stay comparable (REQ-L4).
 
 **Disambiguation matrix (REQ-L2).** An N×N matrix of "goal truly targets tool i, agent chose tool j." Off-diagonal mass = confusion. Reported as the screenshot-worthy artifact: `archive_record ⇄ delete_record: 34% confusion`. An **offline embedding pass** (cosine similarity of tool descriptions) pre-shortlists likely-confusable pairs so the LLM probe focuses its budget — and gives `static` mode a heuristic-only matrix.
@@ -342,11 +342,11 @@ The flagship ecosystem link (RESEARCH §6). mcp-probe already did connect+discov
     "target": { "type": "mcp", "transport": "stdio", "command": "python my_server.py" },
     "population": { "size": 200, "mix": { "naive": 0.5, "expert": 0.2, "adversarial": 0.05 } }
   },
-  "trace_baseline": "./probe.trace.jsonl"
+  "trace_baseline": "./probe.otel.jsonl"   // OTel GenAI profile (gen_ai.* + swarmproof.*)
 }
 ```
 
-- **Why it's clean:** both tools share `trace-format`, `persona-pack`, and the `MCPTarget` shape (`discover()/invoke()/reset()`). mcp-probe fills stampede's discovery + a *prior* on where to look (confusable pairs become stampede's misuse-map focus; expensive tools become costbomb seeds).
+- **Why it's clean:** both tools share the **OTel GenAI trace profile** (`gen_ai.*` + `swarmproof.*`), `persona-pack` (`swarmproof.dev/persona/v1`), and the `MCPTarget` shape (`discover()/invoke()/reset()`); the handoff's `trace_baseline` is an OTel-profile trace stampede can replay. mcp-probe fills stampede's discovery + a *prior* on where to look (confusable pairs become stampede's misuse-map focus; expensive tools become costbomb seeds).
 - **Narrative:** "your server scored a B — now watch 200 agents actually use it." The static grade motivates the dynamic sim; the dynamic sim explains the static grade.
 
 ---
@@ -355,10 +355,10 @@ The flagship ecosystem link (RESEARCH §6). mcp-probe already did connect+discov
 
 | Primitive | Reuse | Coupling note |
 |---|---|---|
-| **concurrency-core** | Performance engine's load driver | Vendored; extract to `agent-reliability-core` at ~stampede v0.2. mcp-probe uses only the scheduler + concurrency-curve API, not persona logic. |
-| **report-renderer** | terminal + HTML report (oxblood) | Vendored; mcp-probe registers a `QualityScoreReport` view. |
-| **trace-format** | Legibility + Performance emit; handoff baseline | Consume the schema, don't fork it — the handoff depends on cross-tool trace compatibility. |
-| **persona-pack** | minimal `naive` persona for Legibility probe | Consume one persona; full packs stay stampede's concern. |
+| **concurrency-core** | Performance engine's load driver | Import stampede's `Scheduler` / `Executor` **Protocol** (the binding contract); mcp-probe supplies uniform-MCP-client tasks + a concurrency curve, not persona logic. Vendored; extract to `agent-reliability-core` at ~stampede v0.2. |
+| **report-renderer** | terminal + HTML report (oxblood) | Render via the shared **`RunReport`** model + report-renderer; mcp-probe registers a `QualityScoreReport` view over `RunReport`. Vendored. |
+| **trace-format** | Legibility + Performance emit; handoff baseline | **The OpenTelemetry GenAI semantic-conventions *profile*** (`gen_ai.*` spans/attributes + the `swarmproof.*` extension) — **not** a bespoke schema. Consume the profile, don't fork it — the handoff depends on cross-tool trace compatibility. |
+| **persona-pack** | minimal `naive` persona for Legibility probe | Consume one persona from persona-pack **`apiVersion: swarmproof.dev/persona/v1`**; full packs stay stampede's concern. |
 
 ---
 
