@@ -32,7 +32,7 @@ mcp-probe static ./server.mcp.json         # offline / air-gapped CI
 
 Outputs a terminal report, JSON for CI, and an **`mcp-probe: A`** badge for your README. See [`SPEC.md`](./SPEC.md) and [`ROADMAP.md`](./ROADMAP.md).
 
-## Part of the Agent Reliability toolkit
+## Part of the Swarm Proof toolkit
 
 *Trust infrastructure for the agent economy — seven projects, one thesis.*
 
