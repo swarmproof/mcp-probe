@@ -5,8 +5,8 @@ abstract: "The CI quality suite for MCP server builders. Part of the Agent Relia
 authors:
   - family-names: Boudoukha
     given-names: Maroua
-repository-code: "https://github.com/AgentReliability/mcp-probe"
-url: "https://github.com/AgentReliability/mcp-probe"
+repository-code: "https://github.com/swarmproof/mcp-probe"
+url: "https://github.com/swarmproof/mcp-probe"
 license: Apache-2.0
 type: software
 keywords:
