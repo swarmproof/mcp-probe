@@ -12,9 +12,11 @@
 
 The security-scanning lane is **already contested** and I won't march into it head-on. As of April 2026 there are at least four security-focused MCP scanners: Invariant Labs' **mcp-scan** (config-level: tool poisoning, rug pulls, cross-origin escalation — the de facto standard, now Snyk-associated), **Cisco's mcp-scanner** (YARA + LLM-judge engines), **mcp-scanner** (an academic comprehensive tool), and **agent-audit** (config lint, OWASP MCP Top 10 mapping). Security alone is crowded.
 
-**But every one of those tools answers "is this server *malicious/vulnerable*?" — none answers "is this server *any good*?"** There is no `lighthouse` for MCP: nothing that scores whether your tool *descriptions are legible to agents*, benchmarks *token cost per tool*, measures *latency under concurrent agents*, validates *schema/contract correctness*, or catches *quality regressions in CI*. That's the white space. mcp-probe is a **quality-and-reliability suite** that treats security as *one* of several checks (and defers deep security to the specialists via integration, not reinvention).
+**Every one of those tools answers "is this server *malicious/vulnerable*?"** The *quality* question — "is this server *any good*?" — is no longer untouched either: as of mid-2026 there are **point tools** for it. **mcp-xray** scores token-tax + tool-confusion into a single 0–100 grade (offline/live), and **Cisco's mcp-scanner** added a readiness analyzer (timeouts/retries/error-handling heuristics). Credit where due — they prove the demand.
 
-This is a sharper, more defensible wedge than "another scanner," and it's native to the author (professional MCP-server builder).
+**But those are graded X-rays you run by hand. There is still no `lighthouse`/`pytest` for MCP** — no CI-native *suite* that unifies the quality dimensions (contract, legibility, cost, performance, light security) into one graded gate, catches *quality regressions across commits*, prints a badge, and hands off to a full behavioral simulation. mcp-xray tells you your score; mcp-probe is the thing in `.github/workflows` that *blocks the merge* when the score regresses. That's the white space — a **suite and a gate**, not another point score. mcp-probe is a **quality-and-reliability suite** that treats security as *one* of several checks (deferring deep security to the specialists via integration, not reinvention) and unifies the quality point tools rather than competing with them.
+
+This is a sharper, more defensible wedge than "another scanner" or "another score," and it's native to the author (professional MCP-server builder).
 
 ### 1.2 Problem
 

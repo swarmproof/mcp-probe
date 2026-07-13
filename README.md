@@ -13,9 +13,9 @@
 
 ## Why
 
-Security scanners already answer *"is this server malicious?"* (mcp-scan, Cisco's mcp-scanner, and others own that lane). **None answer *"is this server any good?"*** There is no `lighthouse` for MCP: nothing scores whether your tool *descriptions are legible to agents*, benchmarks *token cost per tool*, measures *latency under concurrent agents*, validates *contract correctness*, or catches *quality regressions in CI*.
+Security scanners already answer *"is this server malicious?"* (mcp-scan, Cisco's mcp-scanner, and others own that lane). The *quality* question — *"is this server any good?"* — now has **point tools too**: [mcp-xray](https://medium.com/@irregularbi/your-mcp-server-has-a-token-tax-mcp-xray-tells-you-exactly-how-much-c93041c80af1) scores token tax and tool confusion into a single grade, and Cisco's mcp-scanner added readiness heuristics. But those are things you run *by hand*. There is still no `lighthouse`/`pytest` for MCP: **no CI-native suite that unifies the quality dimensions (contract, legibility, cost, performance, light security) into one graded gate, catches quality regressions across commits, prints a badge, and hands off to a full behavioral simulation.**
 
-mcp-probe is a **quality-and-reliability suite** — it treats security as *one* check and defers deep security to the specialists (integrate, don't reinvent).
+mcp-xray is an X-ray you run by hand; **mcp-probe is the `pytest` in `.github/workflows` that blocks the merge.** It is a **quality-and-reliability suite** — it treats security as *one* check, defers deep security to the specialists (integrate, don't reinvent), and unifies the quality point tools rather than competing with them (credit where due — they prove the demand).
 
 ## Quickstart
 
