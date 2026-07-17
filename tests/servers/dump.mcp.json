@@ -1,0 +1,376 @@
+{
+  "tools": [
+    {
+      "name": "operation_00",
+      "description": "This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats.  (variant 0)",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "verbose": {
+            "default": false,
+            "title": "Verbose",
+            "type": "boolean"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "_opArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "_opOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": null,
+        "readOnlyHint": true,
+        "destructiveHint": null,
+        "idempotentHint": null,
+        "openWorldHint": null
+      }
+    },
+    {
+      "name": "operation_01",
+      "description": "This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats.  (variant 1)",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "verbose": {
+            "default": false,
+            "title": "Verbose",
+            "type": "boolean"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "_opArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "_opOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": null,
+        "readOnlyHint": true,
+        "destructiveHint": null,
+        "idempotentHint": null,
+        "openWorldHint": null
+      }
+    },
+    {
+      "name": "operation_02",
+      "description": "This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats.  (variant 2)",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "verbose": {
+            "default": false,
+            "title": "Verbose",
+            "type": "boolean"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "_opArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "_opOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": null,
+        "readOnlyHint": true,
+        "destructiveHint": null,
+        "idempotentHint": null,
+        "openWorldHint": null
+      }
+    },
+    {
+      "name": "operation_03",
+      "description": "This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats.  (variant 3)",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "verbose": {
+            "default": false,
+            "title": "Verbose",
+            "type": "boolean"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "_opArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "_opOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": null,
+        "readOnlyHint": true,
+        "destructiveHint": null,
+        "idempotentHint": null,
+        "openWorldHint": null
+      }
+    },
+    {
+      "name": "operation_04",
+      "description": "This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats.  (variant 4)",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "verbose": {
+            "default": false,
+            "title": "Verbose",
+            "type": "boolean"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "_opArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "_opOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": null,
+        "readOnlyHint": true,
+        "destructiveHint": null,
+        "idempotentHint": null,
+        "openWorldHint": null
+      }
+    },
+    {
+      "name": "operation_05",
+      "description": "This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats. This tool performs an extremely comprehensive, configurable, enterprise-grade operation with many options and caveats.  (variant 5)",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "verbose": {
+            "default": false,
+            "title": "Verbose",
+            "type": "boolean"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "_opArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "_opOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": null,
+        "readOnlyHint": true,
+        "destructiveHint": null,
+        "idempotentHint": null,
+        "openWorldHint": null
+      }
+    }
+  ]
+}

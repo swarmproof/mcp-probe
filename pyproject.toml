@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-probe"
+version = "0.1.0"
+description = "The CI quality suite for MCP servers — lint, contract-test, benchmark, and load-test your MCP server before you ship it."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Swarm Proof" }]
+keywords = ["mcp", "model-context-protocol", "ci", "testing", "agents", "reliability", "lighthouse"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+
+# Core deps kept lean: the zero-LLM fast path (Contract + Cost) must install and run
+# without any model provider or heavy optional tooling (NFR-1, NFR-5).
+dependencies = [
+    "mcp>=1.0",              # official MCP SDK (client transports + ClientSession)
+    "jsonschema>=4.21",      # Contract: input/output schema validation (REQ-C3, REQ-C4)
+    "tiktoken>=0.7",         # Cost: deterministic offline token counting (REQ-$4)
+    "rich>=13.7",            # terminal report renderer (oxblood theme)
+    "tomli>=2.0; python_version < '3.11'",  # .mcp-probe.toml (stdlib tomllib on 3.11+)
+]
+
+[project.optional-dependencies]
+# Legibility (the [llm] path) is opt-in and off the CI-critical fast path (ADR-002).
+llm = [
+    "anthropic>=0.40",       # authoritative token counts + a cloud legibility provider
+    "openai>=1.40",          # OpenAI-compatible endpoints (incl. Ollama, LM Studio)
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/swarmproof/mcp-probe"
+Repository = "https://github.com/swarmproof/mcp-probe"
+Issues = "https://github.com/swarmproof/mcp-probe/issues"
+
+[project.scripts]
+mcp-probe = "mcp_probe.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_probe"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# `live_llm` runs the real pinned model to catch drift; excluded from the default/CI run
+# (TEST-PLAN §3, §9.7). Run with: pytest -m live_llm
+markers = [
+    "live_llm: tests that call a real LLM provider (opt-in, network-gated)",
+    "e2e: end-to-end tests against fixture MCP servers",
+    "integration: cross-component / transport tests",
+]
+filterwarnings = ["error::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
