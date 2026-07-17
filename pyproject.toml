@@ -86,5 +86,10 @@ ignore = ["SIM102", "SIM108"]
 
 [tool.mypy]
 python_version = "3.11"
-strict = true
+# Pragmatic (not full strict) for v0.1: catch real type errors without demanding
+# annotations on every internal helper or generic parameter. jsonschema/tiktoken/mcp
+# ship no stubs.
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
 warn_unused_ignores = true

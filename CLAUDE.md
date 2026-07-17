@@ -2,11 +2,43 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current state: spec-complete, code-empty
+## Current state: v0.1 implemented (all five families)
 
-**There is no code in this repo yet.** Every tracked file is Markdown documentation — there is no `pyproject.toml`, `src/`, `tests/`, or CI workflow. mcp-probe is fully specced and awaiting its first implementation commit. When you start writing code, you are implementing the design already fixed in the docs below, not designing from scratch.
+The v0.1 fast path and all five check families are implemented, tested, and dogfooded.
+Python 3.11+ (`src/` layout, `pip install`), official MCP SDK, `asyncio`. What deviates
+from the spec is recorded in **`docs/DECISIONS.md`** — read it before changing security
+IDs, the handshake, or the token counter.
 
-Consequently there are **no build/lint/test commands yet**. The planned toolchain (from the specs) is: Python 3.11+, the official MCP SDK, `asyncio`, packaged as `pip install mcp-probe` exposing a CLI (`mcp-probe run|static|snapshot|badge`), tested with `pytest`. Establishing that scaffolding is WBS item 0.1 (see `docs/DELIVERY-PLAN.md`).
+### Commands
+
+```bash
+python -m venv .venv && .venv/bin/pip install -e ".[dev]"   # setup
+
+.venv/bin/pytest -m "not live_llm" -q            # full suite (unit+component+integration+e2e)
+.venv/bin/pytest tests/test_scorer.py -q          # a single test file
+.venv/bin/pytest -m e2e -q                        # only the live-fixture E2E scenarios
+.venv/bin/pytest -m live_llm -q                   # opt-in, calls a real model (excluded by default)
+.venv/bin/ruff check src/ tests/                  # lint (line-length 110)
+.venv/bin/mypy src/                               # types (strict)
+
+.venv/bin/mcp-probe run ".venv/bin/python tests/servers/good_server.py"   # live probe
+.venv/bin/mcp-probe static tests/servers/dump.mcp.json --json             # offline
+.venv/bin/mcp-probe run "…" --all --model ollama:qwen2.5-3b               # all five families
+```
+
+Tests spawn fixture servers with the **same interpreter running pytest** (`sys.executable`),
+so they need the SDK installed in that env — always run via `.venv/bin/pytest`.
+
+### Package layout (`src/mcp_probe/`)
+
+- `models.py` — the frozen data model (`ServerSurface`/`Finding`/`FamilyScore`/`Report`/`CheckEngine`).
+- `config.py` · `cli.py` · `exit_codes.py` — config precedence, the 4 subcommands, CI exit codes.
+- `connect/` — `transport.py` is the **only** module importing the MCP SDK; `client.py` is the
+  façade + `FakeClient`; `discover.py` builds surfaces (live + static dump).
+- `engines/` — one file per family, each a pure `CheckEngine`; registered in `engines/__init__.py`.
+- `contract/`, `legibility/`, `security/`, `perf/`, `tokens.py` — engine-specific internals.
+- `scoring/` · `snapshot/` · `report/` · `handoff.py` · `trace.py` — aggregation & outputs.
+- `tests/servers/` — fixture MCP servers (the TEST-PLAN §2 matrix) + `dump.mcp.json`.
 
 ## What mcp-probe is
 

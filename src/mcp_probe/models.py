@@ -110,7 +110,7 @@ class ServerSurface:
                 }
                 for t in tools
             ),
-            key=lambda d: d["name"],
+            key=lambda d: str(d["name"]),
         )
         return json.dumps(items, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 

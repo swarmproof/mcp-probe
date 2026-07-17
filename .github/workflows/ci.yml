@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check src/ tests/
+      - name: Types
+        run: mypy src/
+      - name: Unit + component + integration + e2e (no live LLM)
+        run: pytest -m "not live_llm" -q
+      - name: Coverage floor on the correctness-critical core
+        # scorer/connect/snapshot are the parts that must not silently break (TEST-PLAN §9.3)
+        run: pytest -m "not live_llm" --cov=mcp_probe.scoring --cov=mcp_probe.snapshot --cov-fail-under=85 -q
+
+  dogfood:
+    name: dogfood the gate + badge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      # The gate must pass a good server and fail a bloated one (proves the gate works live).
+      - name: good_server passes --fail-under B
+        run: mcp-probe run "python tests/servers/good_server.py" --fail-under B
+      - name: bloated_server fails --fail-under A
+        run: |
+          if mcp-probe run "python tests/servers/bloated_server.py" --fail-under A; then
+            echo "expected the gate to FAIL the bloated server"; exit 1
+          fi
+      - name: publish our own badge (the flywheel starts at home)
+        run: mcp-probe badge "python tests/servers/good_server.py" --out mcp-probe-badge.svg
+
+  determinism:
+    name: fast-path determinism guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      # Fast path must be byte-identical across runs (NFR-2). Meta/timing is excluded by
+      # comparing the report bodies with a stable serialization.
+      - name: run twice, diff the JSON
+        run: |
+          mcp-probe static tests/servers/dump.mcp.json --json > a.json
+          mcp-probe static tests/servers/dump.mcp.json --json > b.json
+          python - <<'PY'
+          import json
+          a = json.load(open("a.json")); b = json.load(open("b.json"))
+          a.pop("meta", None); b.pop("meta", None)
+          assert a == b, "fast-path output was not deterministic"
+          print("deterministic OK")
+          PY
+
+  offline:
+    name: static mode (air-gapped)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: static scan needs no network
+        run: mcp-probe static tests/servers/dump.mcp.json --json

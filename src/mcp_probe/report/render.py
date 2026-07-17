@@ -125,8 +125,10 @@ def _family_headline(name: str, metrics: dict[str, Any]) -> str:
         if "usd_per_task" in metrics:
             parts.append(f"${metrics['usd_per_task']}/task")
         return "; ".join(parts)
-    if name == "legibility" and "selection_rate" in metrics:
-        rate = metrics["selection_rate"]
+    if name == "legibility":
+        rate = metrics.get("selection_rate")
+        if rate is None:
+            return "lints only (no model)"
         headline = f"{rate:.0%} right-tool selection"
         if metrics.get("top_confusion"):
             a, b, r = metrics["top_confusion"]

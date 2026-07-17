@@ -1,0 +1,28 @@
+# Example mcp-probe configuration. Copy to `.mcp-probe.toml` (repo root).
+# Precedence: CLI flags > this file > MCP_PROBE_* env vars > defaults.
+# Either a flat table (below) or a [tool.mcp-probe] section is accepted.
+
+# Which families to run. Default is the zero-LLM fast path: ["contract", "cost"].
+families = ["contract", "cost", "security"]
+
+# --- gating ---
+fail_under = "B"          # exit non-zero if overall grade < B
+no_regressions = true     # exit non-zero on any regression vs the committed snapshot
+
+# --- safety ---
+allow_writes = false      # never invoke destructive tools unless true (NFR-9)
+
+# --- cost ---
+tokenizer = "o200k_base"  # offline tiktoken encoding for deterministic counts
+# price_points = ["premium:3.0", "cheap:0.15"]   # $ per 1M input tokens
+
+# --- legibility ([llm], opt-in) ---
+# model = "ollama:qwen2.5-3b"   # pinned local model is the canonical scorer (ADR-004)
+seed = 42
+goal_set_version = "1"
+
+# --- performance ([net]) ---
+concurrency = 50
+
+# --- security ---
+deep_security = false     # true → shell out to mcp-scan / Cisco if on PATH

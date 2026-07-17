@@ -141,6 +141,7 @@ class ContractEngine(EngineBase):
     ) -> tuple[bool, bool]:
         """Invoke a tool with synthesized args; check output conformance (C4) and
         determinism (C5). Returns (conformance_broke, nondeterministic)."""
+        assert ctx.client is not None  # only called on the live path
         seed = getattr(ctx.config, "seed", 42)
         args = synthesize_args(tool.input_schema, seed=seed)
         broke = False

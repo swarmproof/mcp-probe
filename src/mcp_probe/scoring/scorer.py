@@ -91,7 +91,9 @@ class Scorer:
         else:
             effective = {name: w / total_w for name, w in raw.items()}
 
-        overall = sum(measured[name].score * effective[name] for name in measured)  # type: ignore[misc]
+        overall = sum(
+            (measured[name].score or 0.0) * effective[name] for name in measured
+        )
         grade = grade_for_score(overall)
 
         # Hard-gate: explicit trip, or any measured family at F.
