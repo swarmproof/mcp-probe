@@ -8,15 +8,10 @@ Config is loaded once, up front, from three layers merged in strict precedence o
 from __future__ import annotations
 
 import os
-import sys
+import tomllib  # stdlib on the supported Python (>=3.11)
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - fallback for <3.11
-    import tomli as tomllib
 
 DEFAULT_CONFIG_FILENAMES = (".mcp-probe.toml", "mcp-probe.toml")
 ENV_PREFIX = "MCP_PROBE_"

@@ -18,7 +18,7 @@ import json
 import re
 from typing import Protocol
 
-from mcp_probe.models import ServerSurface, ToolDef
+from mcp_probe.models import ToolDef
 
 
 def serialize_tool(tool: ToolDef) -> dict[str, object]:

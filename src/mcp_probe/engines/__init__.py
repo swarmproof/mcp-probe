@@ -6,14 +6,18 @@ from __future__ import annotations
 from mcp_probe.engines.base import EngineBase, clamp, penalty_score
 from mcp_probe.engines.contract import ContractEngine
 from mcp_probe.engines.cost import CostEngine
+from mcp_probe.engines.legibility import LegibilityEngine
+from mcp_probe.engines.performance import PerformanceEngine
 from mcp_probe.engines.security import SecurityEngine
 
-# Legibility / Performance are registered as they come online; the fast-path families
-# (Contract, Cost) and Security-lite are available with zero external dependencies.
+# All five families. Contract/Cost/Security are static-ok; Performance is live-only;
+# Legibility is [llm] (runs offline lints without a model, full probe with one).
 ENGINE_REGISTRY: dict[str, type[EngineBase]] = {
     "contract": ContractEngine,
     "cost": CostEngine,
     "security": SecurityEngine,
+    "performance": PerformanceEngine,
+    "legibility": LegibilityEngine,
 }
 
 
@@ -27,6 +31,8 @@ __all__ = [
     "ContractEngine",
     "CostEngine",
     "SecurityEngine",
+    "PerformanceEngine",
+    "LegibilityEngine",
     "register",
     "clamp",
     "penalty_score",

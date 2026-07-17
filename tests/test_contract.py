@@ -12,7 +12,6 @@ from mcp_probe.engines.contract import ContractEngine
 
 from .conftest import make_ctx
 
-
 # -- schema validity (REQ-C3) -------------------------------------------------
 
 def test_validate_schema_accepts_valid():

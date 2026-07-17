@@ -23,7 +23,7 @@ def test_cost_curve_anchors(tokens, expected, tol):
 
 def test_cost_curve_monotonic_decreasing():
     scores = [cost_score(t) for t in range(2000, 60000, 2000)]
-    assert all(a >= b for a, b in zip(scores, scores[1:]))
+    assert all(a >= b for a, b in zip(scores, scores[1:], strict=False))
 
 
 async def test_leave_one_out_attribution_is_deterministic():
@@ -56,6 +56,6 @@ async def test_bloat_finding_emitted():
 
 
 def test_heuristic_counter_deterministic():
-    text = serialize_toolset(())
+    assert serialize_toolset(()) == "[]"
     c = HeuristicCounter()
     assert c.count("hello world foo") == c.count("hello world foo")

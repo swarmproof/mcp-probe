@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from mcp_probe import RUBRIC_VERSION, __version__
-from mcp_probe.config import LIVE_FAMILIES, LLM_FAMILIES, ProbeConfig
+from mcp_probe.config import LIVE_FAMILIES, ProbeConfig
 from mcp_probe.connect import surface_from_dump
 from mcp_probe.connect.client import MCPClientProtocol
 from mcp_probe.engines import ENGINE_REGISTRY
@@ -94,10 +94,16 @@ async def _run_engines(
     client: MCPClientProtocol | None,
     trace: TraceSink,
 ) -> dict[str, FamilyScore]:
+    # Build the legibility model provider from config (None → lints-only legibility).
+    from mcp_probe.legibility.model import build_model
+
+    model = build_model(getattr(config, "model", None), seed=getattr(config, "seed", 42))
+
     ctx = ProbeContext(
         surface=surface,
         config=config,
         client=client,
+        model=model,
         trace=trace,
     )
 
@@ -109,8 +115,9 @@ async def _run_engines(
         # static mode: a live-only family can't be scored — report not-measured (ADR-006).
         if client is None and name in LIVE_FAMILIES and engine.requires_live:
             return name, FamilyScore.not_measured(name, "requires a live server (static mode)")
-        if engine.requires_llm and ctx.model is None and name in LLM_FAMILIES:
-            return name, FamilyScore.not_measured(name, "no model provider configured")
+        # LLM families decide for themselves whether they can run without a model — the
+        # Legibility engine still runs its offline lints and reports the behavioural part
+        # as partial rather than blanking the whole family.
         try:
             return name, await engine.run(ctx)
         except Exception as exc:  # an engine crash degrades to not-measured, never aborts the run

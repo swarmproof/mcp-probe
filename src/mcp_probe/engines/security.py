@@ -56,6 +56,7 @@ class SecurityEngine(EngineBase):
             if f.owasp_id:
                 by_owasp[f.owasp_id] = by_owasp.get(f.owasp_id, 0) + 1
 
+        deep_status = deep_notes if getattr(ctx.config, "deep_security", False) else "not measured"
         return FamilyScore(
             family=self.name,
             score=score,
@@ -65,7 +66,7 @@ class SecurityEngine(EngineBase):
             metrics={
                 "findings": len(findings),
                 "by_owasp": by_owasp,
-                "deep_security": deep_notes or ("not measured" if not getattr(ctx.config, "deep_security", False) else {}),
+                "deep_security": deep_status,
             },
         )
 

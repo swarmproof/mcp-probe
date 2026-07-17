@@ -17,7 +17,6 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any
 
-import jsonschema
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 

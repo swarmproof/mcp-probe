@@ -69,11 +69,20 @@ markers = [
 filterwarnings = ["error::DeprecationWarning"]
 
 [tool.ruff]
-line-length = 100
+line-length = 110
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+# SIM102/108 (collapsible ifs / ternaries) hurt readability in the guard-heavy engines.
+ignore = ["SIM102", "SIM108"]
+
+[tool.ruff.lint.per-file-ignores]
+# HTML/SVG template literals can't wrap cleanly.
+"src/mcp_probe/report/badge.py" = ["E501"]
+"src/mcp_probe/report/render.py" = ["E501"]
+# Tests favour readable inline fixtures over strict wrapping.
+"tests/**" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
