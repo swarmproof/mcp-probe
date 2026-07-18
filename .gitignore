@@ -223,3 +223,8 @@ __marimo__/
 stampede-report.html
 .env
 .venv/
+
+# mcp-probe runtime artifacts (the snapshot baseline IS committed; the cache is not)
+.mcp-probe/cache/
+*.badge.svg
+mcp-probe-report.json

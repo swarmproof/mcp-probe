@@ -26,6 +26,29 @@ mcp-probe run "python my_server.py" --json --fail-under B   # CI gate
 mcp-probe static ./server.mcp.json         # offline / air-gapped CI
 ```
 
+## Use it in CI
+
+```yaml
+# .github/workflows/mcp-quality.yml
+name: MCP Quality
+on: [push, pull_request]
+jobs:
+  mcp-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install mcp-probe
+      - run: mcp-probe run "python my_server.py" --fail-under B --no-regressions
+```
+
+The zero-LLM fast path (Contract + Cost) runs deterministically with no model and no
+network beyond your server. Add `--all` for the full five families, `--legibility
+--model ollama:qwen2.5-3b` for the agent-comprehension score, or `--deep-security` to
+fold in mcp-scan / Cisco findings. Commit a baseline with `mcp-probe snapshot "…"` so
+`--no-regressions` can catch a silently-broken tool in the PR.
+
 ## The five check families
 
 **Contract** (LLM-free): spec conformance, schema validity, determinism probe, snapshot regression. · **Legibility** (the differentiator): agent-comprehension score, the disambiguation matrix (`delete` vs `archive` confusion rate), description lints with proposed rewrites. · **Cost**: token weight of your whole toolset, per-tool bloat, $-per-task estimates. · **Performance**: concurrent-agent load with real MCP semantics (not naive HTTP), p50/p95/p99, connection-leak detection. · **Security-lite**: OWASP MCP Top 10 basics, with `--deep-security` shelling out to mcp-scan / Cisco.
