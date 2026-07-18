@@ -102,7 +102,13 @@ class _OpenAICompatModel:
     def _client(self):
         from openai import OpenAI
 
-        return OpenAI(base_url=self._base_url) if self._base_url else OpenAI()
+        if self._base_url:
+            # Local OpenAI-compatible endpoints (Ollama, LM Studio) ignore the key, but the
+            # SDK requires a non-empty one.
+            import os
+
+            return OpenAI(base_url=self._base_url, api_key=os.environ.get("OPENAI_API_KEY", "local"))
+        return OpenAI()
 
     def choose_tool(self, goal: str, tools: list[tuple[str, str]]) -> str:
         self.call_count += 1
