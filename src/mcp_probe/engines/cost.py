@@ -103,12 +103,21 @@ class CostEngine(EngineBase):
         usd_per_task = usd_by_point[headline_label]
 
         score = cost_score(toolset_tokens)
+        # Offline counters are OpenAI-family tokenizers; they UNDERCOUNT Claude by ~15-20%
+        # (more on code / non-English). Label the number so it's never mistaken for a
+        # billing-grade Claude count. The authoritative path is a provider count_tokens.
+        estimate_note = (
+            "estimate (OpenAI tokenizer; undercounts Claude ~15-20%)"
+            if counter.name != "provider"
+            else None
+        )
         metrics = {
             "toolset_tokens": toolset_tokens,
             "per_tool_tokens": dict(sorted(per_tool.items(), key=lambda kv: kv[1], reverse=True)),
             "usd_per_task": usd_per_task,
             "usd_by_price_point": usd_by_point,
             "counter": counter.name,
+            "counter_note": estimate_note,
             "tools": len(tools),
         }
         from mcp_probe.scoring import grade_for_score

@@ -52,17 +52,25 @@ class _ShellAdapter:
     name = "shell"
     source: FindingSource = "builtin"
     binary = ""
+    candidates: tuple[str, ...] = ()  # resolved in order; first on PATH wins
     args: tuple[str, ...] = ()
 
+    def _resolve(self) -> str | None:
+        for cand in (self.candidates or (self.binary,)):
+            if cand and shutil.which(cand):
+                return cand
+        return None
+
     def available(self) -> bool:
-        return shutil.which(self.binary) is not None
+        return self._resolve() is not None
 
     def scan(self, target: str) -> list[Finding]:
-        if not self.available():
+        binary = self._resolve()
+        if binary is None:
             return []
         try:
             proc = subprocess.run(  # noqa: S603 - invoking a user-approved scanner
-                [self.binary, *self.args, target],
+                [binary, *self.args, target],
                 capture_output=True,
                 text=True,
                 timeout=120,
@@ -106,17 +114,42 @@ class _ShellAdapter:
 
 
 class McpScanAdapter(_ShellAdapter):
+    # Invariant Labs' mcp-scan is now Snyk's agent-scan; prefer it, fall back to legacy.
+    # Snyk explicitly warns its --json shape is unstable, so we parse defensively.
     name = "mcp-scan"
     source: FindingSource = "mcp-scan"
-    binary = "mcp-scan"
+    candidates = ("snyk-agent-scan", "mcp-scan")
     args = ("scan", "--json")
 
 
 class CiscoAdapter(_ShellAdapter):
+    """Cisco mcp-scanner has the most stable documented JSON of the three; we parse its
+    nested ``results[].findings[]`` shape precisely (see docs)."""
+
     name = "cisco-mcp-scanner"
     source: FindingSource = "cisco"
-    binary = "mcp-scanner"
-    args = ("--json",)
+    candidates = ("mcp-scanner",)
+    args = ("--format", "raw", "--server-url")
+
+    def _iter_issues(self, data: Any) -> list[dict[str, Any]]:
+        # Flatten results[].findings[] into individual issue dicts, carrying the tool name
+        # and the MCP taxonomy from the documented Cisco schema.
+        issues: list[dict[str, Any]] = []
+        for result in data.get("results", []) if isinstance(data, dict) else []:
+            tool = result.get("name")
+            for finding in result.get("findings", []):
+                for detail in finding.get("details", [{}]) or [{}]:
+                    tax = detail.get("mcp_taxonomy", {}) if isinstance(detail, dict) else {}
+                    issues.append(
+                        {
+                            "tool": tool,
+                            "severity": finding.get("severity", result.get("severity", "medium")),
+                            "title": finding.get("threat_summary") or detail.get("description") or "issue",
+                            "id": detail.get("name") or finding.get("analyzer"),
+                            "owasp": tax.get("category") if isinstance(tax, dict) else None,
+                        }
+                    )
+        return issues or super()._iter_issues(data)
 
 
 DEFAULT_ADAPTERS: list[SecurityAdapter] = [McpScanAdapter(), CiscoAdapter()]

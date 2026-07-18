@@ -5,39 +5,41 @@ This records where the v0.1 implementation deliberately diverges from `SPEC.md` 
 docs. Each entry is a decision a future maintainer (or the author) should be able to
 revisit with full context.
 
-## D1 — OWASP mapping uses the LLM Top 10 (2025), not an "MCP Top 10"
+## D1 — OWASP mapping uses the real OWASP MCP Top 10 (2025, Beta)
 
 **Spec assumption:** the docs reference an "OWASP MCP Top 10" and finding codes like
 `S1-owasp-mcp05` (i.e. `MCP01`–`MCP10` identifiers).
 
-**What we did:** security findings anchor to the **OWASP Top 10 for LLM Applications
-2025** (`LLM01:2025` Prompt Injection, `LLM02:2025` Sensitive Information Disclosure,
-`LLM06:2025` Excessive Agency). The MCP-specific threat name (tool poisoning, rug-pull,
-excessive agency) is carried in the finding message; `owasp_id` points at the real,
-stable standard.
+**What we did:** security findings anchor to the **OWASP MCP Top 10 (2025)**
+(`OWASP/www-project-mcp-top-10`) as the primary `owasp_id`:
+tool-poisoning/hidden-instruction → **MCP03:2025**, secrets → **MCP01:2025**,
+command-execution capability → **MCP05:2025**. The mapping lives in one place
+(`src/mcp_probe/security/patterns.py::OWASP`); `LLMTop10` holds the OWASP-LLM-Apps IDs for
+optional dual-mapping.
 
-**Why:** at build time, a *finalised, authoritative* "OWASP MCP Top 10" with stable
-`MCPxx` IDs was not confirmed. Anchoring to the established LLM Top 10 keeps `owasp_id`
-meaningful and lets findings dedup cleanly against external scanners (mcp-scan/Cisco),
-which also map to it. **Revisit** if/when an official OWASP MCP Top 10 ships — the mapping
-lives in one place (`src/mcp_probe/security/patterns.py::OWASP`).
+**Status: corrected.** An initial build mapped to the LLM Top 10 because the MCP Top 10
+hadn't been confirmed; research against `owasp.org/www-project-mcp-top-10` verified it
+exists (author Vandana Verma Sehgal, 2025 edition). **Caveat:** the project is in **Beta**,
+so the `MCPxx:2025` IDs may shift before GA — re-verify before mcp-probe's own 1.0.
 
-## D2 — No `server/discover` stateless handshake probe
+## D2 — No `server/discover` stateless handshake probe (validated)
 
 **Spec assumption:** ARCHITECTURE §3 describes negotiating a `2026-07-28` stateless path
 (`server/discover` + per-request `_meta`) and falling back to the legacy `initialize`
 handshake.
 
-**What we did:** the connect engine negotiates the real `initialize` handshake the
-official SDK implements, records the server's reported `protocolVersion`, and leaves
-`stateless_discover_ok = None` (unprobed) rather than fabricating a probe.
+**What we did:** the connect engine negotiates the real `initialize` handshake, records
+the server's reported `protocolVersion`, and leaves `stateless_discover_ok = None`
+(unprobed).
 
-**Why:** the installed official MCP Python SDK exposes no `server/discover` client method
-(verified by introspection). Implementing a probe for a method that doesn't exist would
-manufacture a false forward-compat signal. The `ConnectRecord` already carries the
-`stateless_discover_ok` field, so when the SDK adds the method the probe drops in without
-a data-model change. The forward-compat lint (REQ-C10) still fires for legacy/SSE-only
-transports via the fields we *can* observe.
+**Status: validated by research.** `server/discover` is real (SEP-2575, status Final) but
+ships only in the **2026-07-28 release candidate** — the latest *released/stable* spec is
+**2025-11-25**, and the installed SDK (`mcp` v1.28.x, `LATEST_PROTOCOL_VERSION =
+"2025-11-25"`) has no `server/discover` client method. So coding `initialize` as the
+primary path and treating stateless discovery as a future (2026-07-28+) path is exactly
+right. The `ConnectRecord.stateless_discover_ok` field is already present, so the probe
+drops in when the RC finalises and the SDK exposes it. The forward-compat lint (REQ-C10)
+still fires for legacy/SSE-only transports today.
 
 ## D3 — Offline token counter falls back to a deterministic heuristic
 

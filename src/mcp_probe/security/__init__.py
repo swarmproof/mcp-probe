@@ -2,9 +2,10 @@
 
 from mcp_probe.security.patterns import (
     OWASP,
+    LLMTop10,
     scan_dangerous_capabilities,
     scan_injection,
     scan_secrets,
 )
 
-__all__ = ["OWASP", "scan_injection", "scan_secrets", "scan_dangerous_capabilities"]
+__all__ = ["OWASP", "LLMTop10", "scan_injection", "scan_secrets", "scan_dangerous_capabilities"]
