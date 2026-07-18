@@ -15,6 +15,8 @@ allow_writes = false      # never invoke destructive tools unless true (NFR-9)
 # --- cost ---
 tokenizer = "o200k_base"  # offline tiktoken encoding for deterministic counts
 # price_points = ["premium:3.0", "cheap:0.15"]   # $ per 1M input tokens
+# token_model = "anthropic:claude-sonnet-5"   # opt-in authoritative Claude count; needs
+#                                             # ANTHROPIC_API_KEY, else falls back to estimate
 
 # --- legibility ([llm], opt-in) ---
 # model = "ollama:qwen2.5-3b"   # pinned local model is the canonical scorer (ADR-004)

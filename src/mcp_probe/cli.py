@@ -74,6 +74,12 @@ def _add_family_flags(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--security", action="store_true", help="add the Security-lite family")
     sp.add_argument("--deep-security", action="store_true", help="shell out to mcp-scan / Cisco")
     sp.add_argument("--model", default=None, help="legibility model, e.g. 'ollama:qwen2.5-3b'")
+    sp.add_argument(
+        "--token-model",
+        default=None,
+        help="authoritative token count via a provider, e.g. 'anthropic:claude-sonnet-5' "
+        "(needs ANTHROPIC_API_KEY; falls back to the offline estimate)",
+    )
     sp.add_argument("--seed", type=int, default=None)
     sp.add_argument("--concurrency", type=int, default=None)
 
@@ -105,6 +111,7 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
         "transport": getattr(args, "transport", None),
         "deep_security": _true_or_none(getattr(args, "deep_security", False)),
         "model": getattr(args, "model", None),
+        "token_model": getattr(args, "token_model", None),
         "seed": getattr(args, "seed", None),
         "concurrency": getattr(args, "concurrency", None),
         "families": _families_from_args(args) if hasattr(args, "all_families") else None,

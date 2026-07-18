@@ -56,6 +56,15 @@ requirements; a counter that silently needs the network would violate both. The 
 is lower-fidelity but reproducible; the *relative* per-tool attribution the score depends
 on is preserved.
 
+**Authoritative opt-in (implemented):** `--token-model anthropic:<model>` uses the
+Anthropic `count_tokens` endpoint (which accepts a `tools` array) for the exact,
+billing-grade Claude count of the headline total — the only accurate Claude count, since
+no offline Claude tokenizer exists. Per-tool weights stay on the fast offline leave-one-out
+and are rescaled to the authoritative total (one API call, no rate-limit risk). It is
+strictly opt-in and falls back silently to the labeled offline estimate when
+`ANTHROPIC_API_KEY` is absent, the SDK isn't installed, or the call fails — so the fast
+path stays keyless and CI never depends on it.
+
 ## D4 — Legibility runs offline lints without a model (partial, not blank)
 
 **Spec:** Legibility is `[llm]`, opt-in, off the CI-critical path (ADR-002).
