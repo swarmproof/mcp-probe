@@ -21,7 +21,7 @@ from typing import Any
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
 from mcp.client.sse import sse_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
 from mcp_probe.config import ProbeConfig
 from mcp_probe.connect.client import ConnectRecord, InvokeResult
@@ -105,8 +105,10 @@ async def _open_streams(stack: AsyncExitStack, transport: Transport, config: Pro
         streams = await stack.enter_async_context(stdio_client(params))
         return streams[0], streams[1]
     if transport == "streamable-http":
-        streams = await stack.enter_async_context(streamablehttp_client(config.target))
-        return streams[0], streams[1]  # (read, write, get_session_id) → take the first two
+        # Non-deprecated client; yields (read, write, get_session_id). Auth headers, when
+        # added, go via a passed httpx.AsyncClient (v0.2).
+        streams = await stack.enter_async_context(streamable_http_client(config.target))
+        return streams[0], streams[1]
     if transport == "sse":
         streams = await stack.enter_async_context(sse_client(config.target))
         return streams[0], streams[1]
