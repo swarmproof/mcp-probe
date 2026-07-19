@@ -52,6 +52,9 @@ class ProbeConfig:
     # --- cost ---
     price_points: tuple[str, ...] = ()  # e.g. ("anthropic:claude-sonnet-5",); default set applied
     tokenizer: str = "o200k_base"  # deterministic offline tiktoken encoding (REQ-$4)
+    # Opt-in authoritative token counting, e.g. "anthropic:claude-sonnet-5". Needs
+    # ANTHROPIC_API_KEY; silently falls back to the offline tiktoken estimate otherwise.
+    token_model: str | None = None
 
     # --- performance ([net]) ---
     concurrency: int = 50

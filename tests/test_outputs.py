@@ -81,3 +81,22 @@ def test_shields_endpoint_payload():
     ep = shields_endpoint("B")
     assert ep == {"schemaVersion": 1, "label": "mcp-probe", "message": "B", "color": "green"}
     json.dumps(ep)  # must be serializable
+
+
+def test_confusion_matrix_renders():
+    from mcp_probe.report.render import render_confusion_matrix
+
+    metrics = {
+        "matrix": {"archive_record": {"delete_record": 3}, "delete_record": {}},
+        "tool_order": ["delete_record", "archive_record"],
+        "per_tool_total": {"archive_record": 3, "delete_record": 3},
+    }
+    out = render_confusion_matrix(metrics)
+    assert "Disambiguation matrix" in out
+    assert "100%" in out  # archive fully confused with delete
+
+
+def test_confusion_matrix_empty_without_data():
+    from mcp_probe.report.render import render_confusion_matrix
+
+    assert render_confusion_matrix({"selection_rate": None}) == ""

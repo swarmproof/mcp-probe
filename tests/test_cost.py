@@ -59,3 +59,35 @@ def test_heuristic_counter_deterministic():
     assert serialize_toolset(()) == "[]"
     c = HeuristicCounter()
     assert c.count("hello world foo") == c.count("hello world foo")
+
+
+async def test_authoritative_token_count_opt_in(monkeypatch):
+    # With token_model set and the Anthropic call "succeeding" (monkeypatched), the engine
+    # uses the authoritative total, clears the estimate note, and rescales per-tool weights.
+    import mcp_probe.engines.cost as cost_mod
+
+    monkeypatch.setattr(cost_mod, "anthropic_toolset_tokens", lambda tools, model: 9999)
+    tools = [
+        {"name": "a", "description": "short", "inputSchema": {"type": "object"}},
+        {"name": "b", "description": "word " * 100, "inputSchema": {"type": "object"}},
+    ]
+    ctx = make_ctx(tools, config=ProbeConfig(token_model="anthropic:claude-sonnet-5"))
+    fs = await cost_mod.CostEngine(counter=HeuristicCounter()).run(ctx)
+    assert fs.metrics["toolset_tokens"] == 9999
+    assert fs.metrics["counter"].startswith("anthropic:count_tokens/")
+    assert fs.metrics["counter_note"] is None  # authoritative → no estimate caveat
+    # per-tool weights rescaled to the authoritative total, still ordered b > a
+    per = fs.metrics["per_tool_tokens"]
+    assert per["b"] > per["a"]
+
+
+async def test_falls_back_to_estimate_when_authoritative_unavailable(monkeypatch):
+    # token_model set but the call returns None (no key / failure) → offline estimate, labeled.
+    import mcp_probe.engines.cost as cost_mod
+
+    monkeypatch.setattr(cost_mod, "anthropic_toolset_tokens", lambda tools, model: None)
+    tools = [{"name": "a", "description": "x", "inputSchema": {"type": "object"}}]
+    ctx = make_ctx(tools, config=ProbeConfig(token_model="anthropic:claude-sonnet-5"))
+    fs = await cost_mod.CostEngine(counter=HeuristicCounter()).run(ctx)
+    assert fs.metrics["counter"] == "heuristic"
+    assert "estimate" in fs.metrics["counter_note"]

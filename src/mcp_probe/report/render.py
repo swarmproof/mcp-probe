@@ -101,6 +101,54 @@ def render_terminal(report: Report, *, console: Console | None = None) -> str:
                 con.print(Text(f"      ↳ {f.remediation}", style="dim"))
 
     out = buffer.getvalue()
+
+    # The disambiguation matrix goes last — the headline artifact when legibility ran.
+    leg = report.families.get("legibility")
+    if leg is not None and leg.metrics.get("matrix"):
+        out += render_confusion_matrix(leg.metrics)
+
+    if console is not None:
+        console.print(out, end="")
+    return out
+
+
+def render_confusion_matrix(metrics: dict[str, Any], *, console: Console | None = None) -> str:
+    """The disambiguation matrix — the headline artifact (REQ-L2). Rows = the tool a goal
+    *should* pick; columns = the tool an agent actually picked. Off-diagonal mass is
+    confusion. Returns "" when no matrix is available (large surface / no model)."""
+    order = metrics.get("tool_order")
+    matrix = metrics.get("matrix")
+    totals = metrics.get("per_tool_total")
+    if not order or matrix is None or not totals:
+        return ""
+
+    buffer = io.StringIO()
+    con = Console(file=buffer, force_terminal=False, width=max(60, 14 + 6 * len(order)), highlight=False)
+    con.print(Text("\nDisambiguation matrix  (row = correct tool · cell = % of times chosen)", style=f"bold {OXBLOOD}"))
+
+    table = Table(show_header=True, header_style=f"bold {OXBLOOD}", padding=(0, 1))
+    table.add_column("correct ↓ / chose →", overflow="fold")
+    labels = [n[:6] for n in order]
+    for lab in labels:
+        table.add_column(lab, justify="right")
+
+    for true_tool in order:
+        total = totals.get(true_tool, 0) or 1
+        cells = []
+        for chosen in order:
+            if chosen == true_tool:
+                correct = total - sum(matrix.get(true_tool, {}).values())
+                rate = correct / total
+                cells.append(Text(f"{rate:.0%}", style="green" if rate >= 0.8 else "yellow"))
+            else:
+                count = matrix.get(true_tool, {}).get(chosen, 0)
+                rate = count / total
+                style = "bold red" if rate >= 0.3 else ("red" if rate > 0 else "dim")
+                cells.append(Text(f"{rate:.0%}" if rate else "·", style=style))
+        table.add_row(Text(true_tool[:18], style="cyan"), *cells)
+    con.print(table)
+
+    out = buffer.getvalue()
     if console is not None:
         console.print(out, end="")
     return out

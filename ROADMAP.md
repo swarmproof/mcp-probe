@@ -1,11 +1,14 @@
 # mcp-probe — Roadmap
 
-> **Status (2026-07-17):** v0.1 implemented — all five families, CLI (`run`/`static`/
-> `snapshot`/`badge`), JSON + `--fail-under` + `--no-regressions` gates, badge, snapshot
-> regression, `--deep-security` adapters, dogfooding CI. 89 tests green (fast path
-> deterministic & <1s on 30 tools). Real LLM providers wired but exercised only via the
-> opt-in `live_llm` suite. See `docs/DECISIONS.md` for deviations. Remaining before launch:
-> HTTP/SSE live integration tests, the demo GIF, and the 20-server leaderboard.
+> **Status (2026-07-18):** v0.1 feature-complete. All five families, CLI
+> (`run`/`static`/`snapshot`/`badge`), JSON + `--fail-under` + `--no-regressions` gates,
+> badge, snapshot regression, `--deep-security` adapters, opt-in authoritative Anthropic
+> token counts, the disambiguation-matrix renderer, and dogfooding CI. **97 tests green**
+> (+ opt-in `live_llm`, verified against Ollama) over stdio + Streamable-HTTP + SSE.
+> [Leaderboard](../docs/leaderboard.md) run against 7 real public MCP servers (6×A, 1×D);
+> [demo](../docs/demo.md) captured. See `docs/DECISIONS.md` for deviations.
+> Remaining: record the demo GIF (script in `scripts/demo.sh`; needs asciinema), expand the
+> leaderboard, and the launch essay.
 
 ## v0.1 (launch)
 - All five check families (Contract, Legibility, Cost, Performance, Security-lite)

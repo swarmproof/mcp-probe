@@ -19,8 +19,13 @@ from __future__ import annotations
 import math
 
 from mcp_probe.engines.base import EngineBase, clamp
-from mcp_probe.models import FamilyScore, Finding, ProbeContext, Severity
-from mcp_probe.tokens import TokenCounter, get_counter, serialize_toolset
+from mcp_probe.models import FamilyScore, Finding, ProbeContext, Severity, ToolDef
+from mcp_probe.tokens import (
+    TokenCounter,
+    anthropic_toolset_tokens,
+    get_counter,
+    serialize_toolset,
+)
 
 # Below this, a toolset is "lean" and scores ~100.
 TOKEN_BUDGET = 2000
@@ -67,14 +72,27 @@ class CostEngine(EngineBase):
                 metrics={"toolset_tokens": 0, "counter": counter.name, "tools": 0},
             )
 
-        toolset_tokens = counter.count(serialize_toolset(tools))
-
-        # Leave-one-out marginal attribution (REQ-$2).
+        # Offline leave-one-out gives deterministic *relative* per-tool weights (REQ-$2).
+        offline_total = counter.count(serialize_toolset(tools))
         per_tool: dict[str, int] = {}
         for t in tools:
             without = tuple(x for x in tools if x.name != t.name)
             without_tokens = counter.count(serialize_toolset(without)) if without else 0
-            per_tool[t.name] = max(0, toolset_tokens - without_tokens)
+            per_tool[t.name] = max(0, offline_total - without_tokens)
+
+        # Opt-in: use the authoritative Anthropic count for the headline total, then rescale
+        # the (relative) offline per-tool weights to it. Falls back to the offline estimate
+        # if no key / SDK / the call fails — the fast path stays keyless (REQ-$4).
+        toolset_tokens = offline_total
+        counter_name = counter.name
+        authoritative = self._authoritative_total(ctx, tools)
+        if authoritative is not None:
+            model = ctx.config.token_model.split(":", 1)[1]
+            counter_name = f"anthropic:count_tokens/{model}"
+            if offline_total > 0:
+                scale = authoritative / offline_total
+                per_tool = {n: max(0, round(w * scale)) for n, w in per_tool.items()}
+            toolset_tokens = authoritative
 
         findings: list[Finding] = []
         for name, weight in sorted(per_tool.items(), key=lambda kv: kv[1], reverse=True):
@@ -105,18 +123,19 @@ class CostEngine(EngineBase):
         score = cost_score(toolset_tokens)
         # Offline counters are OpenAI-family tokenizers; they UNDERCOUNT Claude by ~15-20%
         # (more on code / non-English). Label the number so it's never mistaken for a
-        # billing-grade Claude count. The authoritative path is a provider count_tokens.
+        # billing-grade Claude count. When the authoritative Anthropic count was used, the
+        # number is exact and the note is cleared.
         estimate_note = (
-            "estimate (OpenAI tokenizer; undercounts Claude ~15-20%)"
-            if counter.name != "provider"
-            else None
+            None
+            if counter_name.startswith("anthropic:")
+            else "estimate (OpenAI tokenizer; undercounts Claude ~15-20%)"
         )
         metrics = {
             "toolset_tokens": toolset_tokens,
             "per_tool_tokens": dict(sorted(per_tool.items(), key=lambda kv: kv[1], reverse=True)),
             "usd_per_task": usd_per_task,
             "usd_by_price_point": usd_by_point,
-            "counter": counter.name,
+            "counter": counter_name,
             "counter_note": estimate_note,
             "tools": len(tools),
         }
@@ -129,6 +148,16 @@ class CostEngine(EngineBase):
             findings=findings,
             metrics=metrics,
         )
+
+    @staticmethod
+    def _authoritative_total(ctx: ProbeContext, tools: tuple[ToolDef, ...]) -> int | None:
+        """Return an exact Anthropic token count if the user opted in via
+        ``token_model=anthropic:<model>`` and it succeeds; else None (→ offline estimate)."""
+        spec = getattr(ctx.config, "token_model", None)
+        if not spec or not spec.startswith("anthropic:"):
+            return None
+        model = spec.split(":", 1)[1]
+        return anthropic_toolset_tokens(tools, model)
 
     @staticmethod
     def _resolve_price_points(ctx: ProbeContext) -> dict[str, float]:

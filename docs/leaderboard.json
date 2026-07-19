@@ -1,0 +1,107 @@
+[
+  {
+    "server": "server-everything",
+    "command": "npx -y @modelcontextprotocol/server-everything",
+    "grade": "A",
+    "score": 94.87179487179488,
+    "tools": 13,
+    "toolset_tokens": 1292,
+    "top_confusion": null,
+    "families": {
+      "contract": "B",
+      "cost": "A",
+      "security": "A"
+    },
+    "error": ""
+  },
+  {
+    "server": "server-memory",
+    "command": "npx -y @modelcontextprotocol/server-memory",
+    "grade": "A",
+    "score": 100.0,
+    "tools": 9,
+    "toolset_tokens": 1112,
+    "top_confusion": null,
+    "families": {
+      "contract": "A",
+      "cost": "A",
+      "security": "A"
+    },
+    "error": ""
+  },
+  {
+    "server": "server-sequential-thinking",
+    "command": "npx -y @modelcontextprotocol/server-sequential-thinking",
+    "grade": "D",
+    "score": 66.66666666666667,
+    "tools": 1,
+    "toolset_tokens": 918,
+    "top_confusion": null,
+    "families": {
+      "contract": "F",
+      "cost": "A",
+      "security": "A"
+    },
+    "error": ""
+  },
+  {
+    "server": "server-filesystem",
+    "command": "npx -y @modelcontextprotocol/server-filesystem /tmp",
+    "grade": "A",
+    "score": 98.66666666666667,
+    "tools": 14,
+    "toolset_tokens": 1901,
+    "top_confusion": null,
+    "families": {
+      "contract": "A",
+      "cost": "A",
+      "security": "A"
+    },
+    "error": ""
+  },
+  {
+    "server": "mcp-server-time",
+    "command": "uvx mcp-server-time",
+    "grade": "A",
+    "score": 100.0,
+    "tools": 2,
+    "toolset_tokens": 275,
+    "top_confusion": null,
+    "families": {
+      "contract": "A",
+      "cost": "A",
+      "security": "A"
+    },
+    "error": ""
+  },
+  {
+    "server": "mcp-server-fetch",
+    "command": "uvx mcp-server-fetch",
+    "grade": "A",
+    "score": 100.0,
+    "tools": 1,
+    "toolset_tokens": 290,
+    "top_confusion": null,
+    "families": {
+      "contract": "A",
+      "cost": "A",
+      "security": "A"
+    },
+    "error": ""
+  },
+  {
+    "server": "mcp-server-git",
+    "command": "uvx mcp-server-git",
+    "grade": "A",
+    "score": 100.0,
+    "tools": 12,
+    "toolset_tokens": 1407,
+    "top_confusion": null,
+    "families": {
+      "contract": "A",
+      "cost": "A",
+      "security": "A"
+    },
+    "error": ""
+  }
+]
