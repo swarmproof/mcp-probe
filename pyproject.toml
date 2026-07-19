@@ -83,6 +83,8 @@ ignore = ["SIM102", "SIM108"]
 "src/mcp_probe/report/render.py" = ["E501"]
 # Tests favour readable inline fixtures over strict wrapping.
 "tests/**" = ["E501"]
+# One-shot utility scripts: blocking file I/O and long table strings are fine.
+"scripts/**" = ["E501", "ASYNC240"]
 
 [tool.mypy]
 python_version = "3.11"

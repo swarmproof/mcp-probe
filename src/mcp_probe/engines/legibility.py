@@ -106,6 +106,9 @@ class LegibilityEngine(EngineBase):
             "canonical": model.is_canonical,
             "cache_hit": probe["cache_hit"],
             "lexical_confusable_pairs": shortlist[:5],
+            "matrix": probe.get("matrix"),
+            "tool_order": probe.get("tool_order"),
+            "per_tool_total": probe.get("per_tool_total"),
         }
         return FamilyScore(
             family=self.name, score=score, grade=grade_for_score(score),
@@ -168,6 +171,12 @@ class LegibilityEngine(EngineBase):
             "top_confusion": top_confusion,
             "mean_confusion": mean_conf,
             "low_tools": low_tools,
+            # Full N×N disambiguation matrix (the screenshot-worthy artifact). Only the
+            # off-diagonal (confused) counts are stored; the renderer derives the diagonal
+            # from per_tool_total. Kept for surfaces small enough to display (<= 15 tools).
+            "matrix": {t: dict(c) for t, c in confusion.items()} if len(names) <= 15 else None,
+            "tool_order": names if len(names) <= 15 else None,
+            "per_tool_total": per_tool_total if len(names) <= 15 else None,
         }
 
     def _generate_rewrites(self, surface, model, probe) -> list[dict]:

@@ -4,10 +4,17 @@
 
 > Lint, contract-test, benchmark, and load-test your MCP server before you ship it. The `pytest` + `lighthouse` for the servers agents depend on.
 
-<!-- TODO: demo GIF — the graded report + the legibility misuse-matrix -->
-<p align="center"><em>▶ demo GIF coming — the graded MCP Quality Score report</em></p>
+<!-- Record the GIF from scripts/demo.sh: asciinema rec demo.cast -c "bash scripts/demo.sh" && agg demo.cast demo.gif -->
 
-> **Status:** 🚧 v0.1 in progress — the wedge project (ships first of the tools).
+**▶ See the [live demo](./docs/demo.md)** — the token tax and the disambiguation matrix, captured from real runs. Or the [leaderboard](./docs/leaderboard.md): mcp-probe run against real public MCP servers.
+
+```console
+$ mcp-probe run "python my_server.py" --legibility
+Legibility  F   archive_record⇄delete_record confused 100% of the time   ← caught before you ship
+Cost        D   8,792 toolset tokens — paid on every turn, before anything works
+```
+
+> **Status:** v0.1 implemented — all five families, CLI, CI, badge. See the [roadmap](./ROADMAP.md).
 
 ---
 
