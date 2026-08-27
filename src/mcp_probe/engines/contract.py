@@ -15,7 +15,12 @@ from __future__ import annotations
 
 import re
 
-from mcp_probe.contract.schema import synthesize_args, validate_against, validate_schema
+from mcp_probe.contract.schema import (
+    synthesize_args,
+    synthesize_invalid_args,
+    validate_against,
+    validate_schema,
+)
 from mcp_probe.engines.base import EngineBase, clamp
 from mcp_probe.models import FamilyScore, Finding, ProbeContext, Severity, ToolDef
 
@@ -77,6 +82,7 @@ class ContractEngine(EngineBase):
         invoked = 0
         conformance_breaks = 0
         nondeterministic = 0
+        error_path_crashes = 0
         skipped_writes: list[str] = []
 
         if ctx.client is not None:
@@ -90,14 +96,24 @@ class ContractEngine(EngineBase):
                 broke, nondet = await self._probe_tool(ctx, tool, findings)
                 conformance_breaks += int(broke)
                 nondeterministic += int(nondet)
+                # REQ-C9: error-path — bad input must be rejected cleanly, not crash.
+                if await self._probe_error_path(ctx, tool, findings):
+                    error_path_crashes += 1
 
         # Scoring: fraction of tools passing schema + (where invoked) conformance/determinism.
         measured_live = ctx.client is not None
         total = max(1, len(tools))
-        passing = len(tools) - len(schema_invalid) - conformance_breaks - nondeterministic
+        passing = (
+            len(tools) - len(schema_invalid) - conformance_breaks - nondeterministic - error_path_crashes
+        )
         score = clamp(100.0 * passing / total)
 
-        hard_gate = bool(schema_invalid) or conformance_breaks > 0 or not self._framing_ok(ctx)
+        hard_gate = (
+            bool(schema_invalid)
+            or conformance_breaks > 0
+            or error_path_crashes > 0
+            or not self._framing_ok(ctx)
+        )
         if hard_gate:
             # A broken contract must be visible in the grade even if most tools pass.
             score = min(score, 65.0)
@@ -109,6 +125,8 @@ class ContractEngine(EngineBase):
             summary_bits.append(f"{conformance_breaks} contract break(s)")
         if nondeterministic:
             summary_bits.append(f"{nondeterministic} nondeterministic")
+        if error_path_crashes:
+            summary_bits.append(f"{error_path_crashes} crash-on-bad-input")
         if skipped_writes:
             summary_bits.append(f"{len(skipped_writes)} write tools skipped")
         summary = ", ".join(summary_bits) or f"{len(tools)} tools conform"
@@ -127,6 +145,7 @@ class ContractEngine(EngineBase):
                 "schema_invalid": sorted(schema_invalid),
                 "conformance_breaks": conformance_breaks,
                 "nondeterministic": nondeterministic,
+                "error_path_crashes": error_path_crashes,
                 "skipped_writes": skipped_writes,
                 "invocation_measured": measured_live,
                 "protocol_version": ctx.surface.protocol_version,
@@ -197,6 +216,28 @@ class ContractEngine(EngineBase):
             pass  # a second-call failure is noise; the first call already scored the tool
         return broke, nondet
 
+    async def _probe_error_path(self, ctx: ProbeContext, tool: ToolDef, findings: list[Finding]) -> bool:
+        """REQ-C9: send schema-violating args; a conformant server rejects cleanly (any
+        InvokeResult — the façade normalizes a JSON-RPC error to is_error). A raised
+        exception means a transport crash / hang. Returns True on crash."""
+        assert ctx.client is not None  # only called on the live path
+        bad = synthesize_invalid_args(tool.input_schema, seed=getattr(ctx.config, "seed", 42))
+        try:
+            await ctx.client.call_tool(tool.name, bad)
+            return False  # handled at the protocol level (clean error or tolerated) — pass
+        except Exception as exc:
+            findings.append(
+                Finding(
+                    family=self.name,
+                    code="C9-error-path",
+                    severity=Severity.HIGH,
+                    tool=tool.name,
+                    message=f"tool crashed / did not return a JSON-RPC error on malformed input: {exc!s}",
+                    remediation="validate inputs and return a spec-compliant JSON-RPC error, not a crash",
+                )
+            )
+            return True
+
     # -- handshake / framing --------------------------------------------------
 
     def _framing_ok(self, ctx: ProbeContext) -> bool:
@@ -217,15 +258,26 @@ class ContractEngine(EngineBase):
                     evidence={"errors": rec.framing_errors},
                 )
             )
-        # REQ-C2 / C10: forward-compat. Only nudge when a newer path is known-missing.
-        if rec.stateless_discover_ok is False and rec.legacy_handshake_ok:
+        # REQ-C10: forward-compat lint — flag transition risks.
+        if rec.transport == "sse":
+            findings.append(
+                Finding(
+                    family=self.name,
+                    code="C10-forward-compat",
+                    severity=Severity.LOW,
+                    message="server uses the deprecated HTTP+SSE transport",
+                    remediation="migrate to Streamable HTTP (SSE was deprecated in the 2025-03-26 spec)",
+                    evidence={"transport": "sse"},
+                )
+            )
+        elif rec.stateless_discover_ok is False and rec.legacy_handshake_ok:
             findings.append(
                 Finding(
                     family=self.name,
                     code="C10-forward-compat",
                     severity=Severity.LOW,
                     message="server speaks only the legacy initialize handshake",
-                    remediation="adopt the newer stateless discovery path when your SDK supports it",
+                    remediation="adopt the stateless server/discover path when your SDK ships it",
                     evidence={"protocol_version": rec.protocol_version},
                 )
             )

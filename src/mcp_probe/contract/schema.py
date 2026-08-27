@@ -137,6 +137,26 @@ def synthesize_args(schema: dict[str, Any], *, seed: int = 42, _path: str = "") 
     return _synth_string(schema, seed, _path)
 
 
+def synthesize_invalid_args(schema: dict[str, Any], *, seed: int = 42) -> dict[str, Any]:
+    """Produce a schema-*violating* argument object for error-path testing (REQ-C9).
+
+    Two violations at once, so a lenient server still gets *something* wrong: omit all
+    required fields, and type-mismatch any declared property (string↔object). A conformant
+    server should reject this cleanly; a crash/hang is the finding."""
+    if not isinstance(schema, dict) or schema.get("type") not in (None, "object"):
+        return {"__mcp_probe_unexpected__": {"nested": [1, 2, 3]}}
+    props: dict[str, Any] = schema.get("properties", {})
+    if not props:
+        # No declared shape to violate — send an unexpected nested blob.
+        return {"__mcp_probe_unexpected__": {"nested": [1, 2, 3]}}
+    bad: dict[str, Any] = {}
+    for key, sub in props.items():
+        sub_type = sub.get("type") if isinstance(sub, dict) else None
+        # flip the type: where a scalar is expected, send an object, and vice-versa
+        bad[key] = {"wrong": "type"} if sub_type in ("string", "integer", "number", "boolean") else 12345
+    return bad
+
+
 def _synth_string(schema: dict[str, Any], seed: int, path: str) -> str:
     fmt = schema.get("format")
     token = f"{_seed_int(seed, path):x}"[:6]
