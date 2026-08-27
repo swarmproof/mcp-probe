@@ -11,6 +11,7 @@ severity/title/tool from whatever keys appear rather than assuming a fixed schem
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from typing import Any, Protocol
@@ -129,7 +130,7 @@ class CiscoAdapter(_ShellAdapter):
     name = "cisco-mcp-scanner"
     source: FindingSource = "cisco"
     candidates = ("mcp-scanner",)
-    args = ("--format", "raw", "--server-url")
+    args: tuple[str, ...] = ("--format", "raw", "--server-url")
 
     def _iter_issues(self, data: Any) -> list[dict[str, Any]]:
         # Flatten results[].findings[] into individual issue dicts, carrying the tool name
@@ -152,7 +153,35 @@ class CiscoAdapter(_ShellAdapter):
         return issues or super()._iter_issues(data)
 
 
+# Readiness findings that read as performance vs. everything-else → contract (REQ-S6).
+_READINESS_PERF = re.compile(r"timeout|latency|retr(y|ies)|concurren|rate.?limit|throttl|slow|load", re.I)
+
+
+class CiscoReadinessAdapter(CiscoAdapter):
+    """Cisco's ``readiness`` analyzer — production-readiness heuristics (timeouts, retries,
+    error handling). Its findings are reliability signals, so each is tagged with the
+    Performance or Contract family (not Security) for the pipeline to route (REQ-S6)."""
+
+    name = "cisco-readiness"
+    source: FindingSource = "cisco"
+    args = ("--analyzers", "readiness", "--format", "raw", "--server-url")
+
+    def _normalize(self, item: dict[str, Any]) -> Finding:
+        title = str(item.get("title", ""))
+        ident = str(item.get("id") or item.get("analyzer") or "check")
+        family = "performance" if _READINESS_PERF.search(f"{title} {ident}") else "contract"
+        return Finding(
+            family=family,
+            code=f"readiness-{ident}",
+            severity=_severity_of(item.get("severity") or "medium"),
+            tool=str(item["tool"]) if item.get("tool") else None,
+            message=f"[readiness] {title}",
+            source="cisco",
+        )
+
+
 DEFAULT_ADAPTERS: list[SecurityAdapter] = [McpScanAdapter(), CiscoAdapter()]
+DEFAULT_READINESS_ADAPTERS: list[SecurityAdapter] = [CiscoReadinessAdapter()]
 
 
 def suppress_false_positives(findings: list[Finding], *, min_confidence: float = 0.4) -> list[Finding]:
