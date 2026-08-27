@@ -76,7 +76,11 @@ def build_parser() -> argparse.ArgumentParser:
 def _add_common_flags(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--json", dest="json_out", action="store_true", help="emit the CI JSON report")
     sp.add_argument("--fail-under", metavar="GRADE", help="exit 1 if overall grade < GRADE (A–F)")
+    sp.add_argument("--fail-under-family", metavar="F:G,...", default=None,
+                    help="per-family gates, e.g. 'Contract:A,Security:B'")
     sp.add_argument("--no-regressions", action="store_true", help="exit 1 on any regression vs snapshot")
+    sp.add_argument("--header", dest="headers", action="append", metavar="'K: V'", default=None,
+                    help="HTTP/SSE header (repeatable), e.g. --header 'Authorization: Bearer …'")
     sp.add_argument("--allow-writes", action="store_true", help="permit invoking destructive tools")
     sp.add_argument("--html", dest="html_out", metavar="PATH", help="write an HTML report")
     sp.add_argument("--emit-stampede", metavar="PATH", help="write the stampede --from-probe seed")
@@ -123,6 +127,8 @@ def _families_from_args(args: argparse.Namespace) -> tuple[str, ...]:
 def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
     overrides: dict[str, Any] = {
         "fail_under": getattr(args, "fail_under", None),
+        "fail_under_family": _parse_family_gates(getattr(args, "fail_under_family", None)),
+        "headers": _parse_headers(getattr(args, "headers", None)),
         "no_regressions": _true_or_none(getattr(args, "no_regressions", False)),
         "allow_writes": _true_or_none(getattr(args, "allow_writes", False)),
         "json_out": _true_or_none(getattr(args, "json_out", False)),
@@ -149,6 +155,30 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
 def _true_or_none(flag: bool) -> bool | None:
     """Store-true flags default False; treat False as 'unset' so config/env can win."""
     return True if flag else None
+
+
+def _parse_headers(raw: list[str] | None) -> dict[str, str] | None:
+    """Parse repeated ``--header 'K: V'`` into a dict (None if unset → don't override)."""
+    if not raw:
+        return None
+    out: dict[str, str] = {}
+    for item in raw:
+        key, sep, value = item.partition(":")
+        if sep:
+            out[key.strip()] = value.strip()
+    return out or None
+
+
+def _parse_family_gates(raw: str | None) -> dict[str, str] | None:
+    """Parse ``Contract:A,Security:B`` into {family: grade} (lowercased family keys)."""
+    if not raw:
+        return None
+    out: dict[str, str] = {}
+    for pair in raw.split(","):
+        fam, sep, grade = pair.partition(":")
+        if sep:
+            out[fam.strip().lower()] = grade.strip().upper()
+    return out or None
 
 
 def main(argv: list[str] | None = None) -> int:
