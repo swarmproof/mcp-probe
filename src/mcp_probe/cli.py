@@ -52,6 +52,17 @@ def build_parser() -> argparse.ArgumentParser:
     badge.add_argument("--out", default="badge.svg", help="SVG output path")
     badge.add_argument("--endpoint-out", default=None, help="write the shields JSON endpoint too")
     badge.add_argument("--with-score", action="store_true", help="render 'A · 92' instead of 'A'")
+
+    # -- fix --
+    fix = sub.add_parser("fix", help="apply proposed legibility description rewrites (REQ-L7)")
+    fix.add_argument("target", nargs="?", help="stdio command / URL to probe, if no --from")
+    fix.add_argument("--source", required=True, help="source file whose tool descriptions to rewrite")
+    fix.add_argument("--from", dest="from_report", help="use rewrites from a saved report JSON")
+    fix.add_argument("--model", default=None, help="legibility model for a fresh probe")
+    fix.add_argument("--accept", default=None, help="comma-separated tool names to fix (default: all)")
+    fix.add_argument("--apply", action="store_true", help="write changes (default: dry-run diff)")
+    fix.add_argument("--pr", action="store_true", help="apply, commit on a branch, and open a PR via gh")
+    fix.add_argument("--allow-writes", action="store_true", help=argparse.SUPPRESS)
     return p
 
 
@@ -134,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_badge(args)
     if args.command == "snapshot":
         return _cmd_snapshot(args)
+    if args.command == "fix":
+        return _cmd_fix(args)
     return _cmd_run(args)
 
 
@@ -217,6 +230,88 @@ def _cmd_badge(args: argparse.Namespace) -> int:
         Path(args.endpoint_out).write_text(
             json.dumps(shields_endpoint(grade)) + "\n", encoding="utf-8"
         )
+    return int(ExitCode.OK)
+
+
+def _cmd_fix(args: argparse.Namespace) -> int:
+    import json
+
+    from mcp_probe.fix import apply_to_file, collect_rewrites
+
+    only = set(args.accept.split(",")) if args.accept else None
+
+    # Source of rewrites: a saved report JSON, or a fresh legibility probe of the target.
+    if args.from_report:
+        report = json.loads(Path(args.from_report).read_text(encoding="utf-8"))
+    elif args.target:
+        from mcp_probe.pipeline import run_probe
+        from mcp_probe.report import report_to_dict
+
+        overrides = {
+            "target": args.target,
+            "families": ("contract", "cost", "legibility"),
+            "model": args.model,
+        }
+        config = load_config(cli_overrides={k: v for k, v in overrides.items() if v is not None})
+        try:
+            outcome = asyncio.run(run_probe(config))
+        except Exception as exc:
+            print(f"mcp-probe: probe error: {exc}", file=sys.stderr)
+            return int(ExitCode.PROBE_ERROR)
+        report = report_to_dict(outcome.report)
+    else:
+        print("mcp-probe: fix needs a target or --from report.json", file=sys.stderr)
+        return int(ExitCode.PROBE_ERROR)
+
+    rewrites = collect_rewrites(report, only=only)
+    if not rewrites:
+        print("mcp-probe: no applicable legibility rewrites found "
+              "(run with --legibility and a model, or check --accept)", file=sys.stderr)
+        return int(ExitCode.OK)
+
+    write = args.apply or args.pr
+    result = apply_to_file(args.source, rewrites, write=write)
+
+    for rw in result.applied:
+        print(f"  ✓ {rw.tool}: description rewritten")
+    for rw, reason in result.skipped:
+        print(f"  – {rw.tool}: skipped ({reason})", file=sys.stderr)
+    if result.diff and not write:
+        print("\n" + result.diff, end="")
+        print("(dry-run — pass --apply to write, or --pr to open a pull request)")
+
+    if not result.changed:
+        return int(ExitCode.OK)
+    if args.pr:
+        return _open_fix_pr(args.source, result)
+    if write:
+        print(f"\nmcp-probe: applied {len(result.applied)} rewrite(s) to {args.source}")
+    return int(ExitCode.OK)
+
+
+def _open_fix_pr(source: str, result: Any) -> int:
+    """Apply → branch → commit → PR via git + gh. Degrades to 'applied locally' on failure."""
+    import subprocess
+
+    branch = "mcp-probe/legibility-rewrites"
+    body = "Applies mcp-probe legibility description rewrites (REQ-L7):\n\n" + "\n".join(
+        f"- `{rw.tool}`" for rw in result.applied
+    )
+    steps = [
+        ["git", "checkout", "-b", branch],
+        ["git", "add", source],
+        ["git", "commit", "-m", "fix: apply mcp-probe legibility description rewrites"],
+        ["git", "push", "-u", "origin", branch],
+        ["gh", "pr", "create", "--title", "Apply mcp-probe legibility rewrites", "--body", body],
+    ]
+    try:
+        for step in steps:
+            subprocess.run(step, check=True, capture_output=True, text=True)  # noqa: S603
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        print(f"mcp-probe: changes applied locally; couldn't open PR automatically ({exc})",
+              file=sys.stderr)
+        return int(ExitCode.OK)
+    print(f"mcp-probe: opened PR from branch {branch}")
     return int(ExitCode.OK)
 
 

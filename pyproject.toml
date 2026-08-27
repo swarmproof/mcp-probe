@@ -24,7 +24,9 @@ classifiers = [
 # Core deps kept lean: the zero-LLM fast path (Contract + Cost) must install and run
 # without any model provider or heavy optional tooling (NFR-1, NFR-5).
 dependencies = [
-    "mcp>=1.0",              # official MCP SDK (client transports + ClientSession)
+    "mcp>=1.28,<2",          # official MCP SDK. Pinned to v1.x: v2 renamed FastMCP→MCPServer
+                             # and changed result field casing (isError→is_error). Migration
+                             # to v2 is tracked as its own issue.
     "jsonschema>=4.21",      # Contract: input/output schema validation (REQ-C3, REQ-C4)
     "tiktoken>=0.7",         # Cost: deterministic offline token counting (REQ-$4)
     "rich>=13.7",            # terminal report renderer (oxblood theme)
