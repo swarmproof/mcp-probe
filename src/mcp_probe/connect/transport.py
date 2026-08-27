@@ -19,7 +19,7 @@ import shlex
 from contextlib import AsyncExitStack
 from typing import Any
 
-from mcp import ClientSession, StdioServerParameters, stdio_client
+from mcp import ClientSession, McpError, StdioServerParameters, stdio_client
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
@@ -38,7 +38,12 @@ class MCPClient:
         self.connect_record = record
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> InvokeResult:
-        result = await self._session.call_tool(name, args)
+        # A JSON-RPC error (McpError) is a *clean* protocol response, not a crash — normalize
+        # it to an is_error result so engines stay SDK-agnostic and only real crashes raise.
+        try:
+            result = await self._session.call_tool(name, args)
+        except McpError as exc:
+            return InvokeResult(tool=name, is_error=True, content={"error": str(exc)}, raw=exc)
         content = [_dump(block) for block in (result.content or [])]
         return InvokeResult(
             tool=name,

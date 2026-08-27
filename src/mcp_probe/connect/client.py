@@ -77,7 +77,11 @@ class FakeClient:
         if spec is None:
             return InvokeResult(tool=name, is_error=False, content={"ok": True})
         if callable(spec):
-            return spec()
+            # A callable that accepts a parameter receives the args (so a test can react to
+            # invalid input, e.g. crash on bad args); a zero-arg callable is called bare.
+            import inspect
+
+            return spec(args) if len(inspect.signature(spec).parameters) >= 1 else spec()
         return spec
 
     async def close(self) -> None:
