@@ -68,14 +68,19 @@ class Row:
     families: dict = field(default_factory=dict)
 
 
-async def probe_one(spec: ServerSpec, *, families: tuple[str, ...], model: str | None) -> Row:
+async def probe_one(
+    spec: ServerSpec, *, families: tuple[str, ...], model: str | None,
+    headers: dict[str, str] | None = None,
+) -> Row:
     row = Row(spec=spec)
     start = time.monotonic()
+    is_url = spec.command.strip().startswith(("http://", "https://"))
     cfg = ProbeConfig(
         target=spec.command,
-        transport="stdio",
+        transport="auto" if is_url else "stdio",
         families=families,
         model=model,
+        headers=headers or {},  # optional auth for HTTP servers
         stdio_timeout=150.0,  # npx/uvx first-run downloads can be slow
         concurrency=8,
     )
@@ -159,8 +164,16 @@ async def main() -> int:
     parser.add_argument("--legibility", action="store_true", help="add legibility via Ollama")
     parser.add_argument("--model", default="ollama:mistral-small:latest")
     parser.add_argument("--only", default="", help="comma-separated server keys to run")
+    parser.add_argument("--header", dest="headers", action="append", default=None,
+                        help="HTTP header for authed servers (repeatable), 'K: V'")
     parser.add_argument("--out", default="docs/leaderboard.md")
     args = parser.parse_args()
+
+    headers: dict[str, str] = {}
+    for h in args.headers or []:
+        k, sep, v = h.partition(":")
+        if sep:
+            headers[k.strip()] = v.strip()
 
     families = ("contract", "cost", "security")
     model = None
@@ -176,7 +189,7 @@ async def main() -> int:
     rows: list[Row] = []
     for spec in specs:  # sequential: parallel npx downloads thrash disk/network
         print(f"probing {spec.label} …", file=sys.stderr)
-        row = await probe_one(spec, families=families, model=model)
+        row = await probe_one(spec, families=families, model=model, headers=headers or None)
         if row.error:
             status = row.error
         elif row.score is not None:

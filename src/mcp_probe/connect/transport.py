@@ -109,13 +109,21 @@ async def _open_streams(stack: AsyncExitStack, transport: Transport, config: Pro
         params = StdioServerParameters(command=parts[0], args=parts[1:])
         streams = await stack.enter_async_context(stdio_client(params))
         return streams[0], streams[1]
+    headers = dict(getattr(config, "headers", {}) or {})
     if transport == "streamable-http":
-        # Non-deprecated client; yields (read, write, get_session_id). Auth headers, when
-        # added, go via a passed httpx.AsyncClient (v0.2).
-        streams = await stack.enter_async_context(streamable_http_client(config.target))
+        # Non-deprecated client; yields (read, write, get_session_id). Auth headers ride on
+        # a passed httpx.AsyncClient (the new API's injection point).
+        http_client = None
+        if headers:
+            import httpx
+
+            http_client = await stack.enter_async_context(httpx.AsyncClient(headers=headers))
+        streams = await stack.enter_async_context(
+            streamable_http_client(config.target, http_client=http_client)
+        )
         return streams[0], streams[1]
     if transport == "sse":
-        streams = await stack.enter_async_context(sse_client(config.target))
+        streams = await stack.enter_async_context(sse_client(config.target, headers=headers or None))
         return streams[0], streams[1]
     raise ValueError(f"unknown transport: {transport}")
 

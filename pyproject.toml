@@ -67,6 +67,7 @@ markers = [
     "live_llm: tests that call a real LLM provider (opt-in, network-gated)",
     "e2e: end-to-end tests against fixture MCP servers",
     "integration: cross-component / transport tests",
+    "deep_security: tests that shell out to a real installed scanner (opt-in, tool-gated)",
 ]
 filterwarnings = ["error::DeprecationWarning"]
 

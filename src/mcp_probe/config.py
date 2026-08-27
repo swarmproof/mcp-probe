@@ -33,6 +33,7 @@ class ProbeConfig:
     transport: str = "auto"  # "auto" | "stdio" | "streamable-http" | "sse"
     static_path: str | None = None  # path to a tools/list JSON dump → offline mode
     stdio_timeout: float = 60.0  # Cisco-parity default; servers may fetch deps on first run
+    headers: dict[str, str] = field(default_factory=dict)  # HTTP/SSE auth headers
 
     # --- which families to run ---
     families: tuple[str, ...] = FAST_PATH_FAMILIES  # default = zero-LLM fast path
