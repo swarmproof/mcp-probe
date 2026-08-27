@@ -31,6 +31,10 @@ from mcp_probe.tokens import (
 TOKEN_BUDGET = 2000
 # A single tool heavier than this is flagged as bloated (REQ-$2).
 PER_TOOL_BLOAT = 700
+# Above this toolset weight, lazy-loading / Tool Search starts to pay off (REQ-$6).
+REMEDIATION_THRESHOLD = 10_000
+# A single tool response heavier than this is flagged as response-bloat (REQ-$5).
+RESPONSE_BLOAT_TOKENS = 1_000
 # Penalty curve constants, anchored to the documented landmarks (see module docstring).
 _A, _B = 10.7, 1.8
 
@@ -112,6 +116,27 @@ class CostEngine(EngineBase):
                     )
                 )
 
+        # REQ-$6: remediation hint when the toolset is heavy enough that deferring pays off.
+        if toolset_tokens > REMEDIATION_THRESHOLD:
+            deferrable = toolset_tokens - TOKEN_BUDGET
+            pct = round(100 * deferrable / toolset_tokens)
+            findings.append(
+                Finding(
+                    family=self.name,
+                    code="$6-remediation",
+                    severity=Severity.INFO,
+                    message=f"toolset is {toolset_tokens} tokens; Tool Search / lazy-loading / "
+                    f"Code Mode could defer up to ~{deferrable} tokens ({pct}%) until a tool is used",
+                    remediation="adopt MCP Tool Search or load tool defs lazily; keep only "
+                    "always-needed tools eager",
+                    evidence={"toolset_tokens": toolset_tokens, "deferrable_tokens": deferrable},
+                )
+            )
+
+        # REQ-$5: response bloat (opt-in, live). Sample read-only tool outputs and measure
+        # their token weight — the *other* half of the context tax. Never affects the score.
+        response_tokens = await self._sample_responses(ctx, counter, findings)
+
         price_points = self._resolve_price_points(ctx)
         usd_by_point = {
             label: round(toolset_tokens / 1_000_000 * price, 4)
@@ -138,6 +163,7 @@ class CostEngine(EngineBase):
             "counter": counter_name,
             "counter_note": estimate_note,
             "tools": len(tools),
+            "response_tokens": response_tokens,  # dict, or "not measured"
         }
         from mcp_probe.scoring import grade_for_score
 
@@ -148,6 +174,45 @@ class CostEngine(EngineBase):
             findings=findings,
             metrics=metrics,
         )
+
+    async def _sample_responses(
+        self, ctx: ProbeContext, counter: TokenCounter, findings: list[Finding]
+    ) -> dict[str, int] | str:
+        """Invoke read-only tools and count their response tokens (REQ-$5). Opt-in + live;
+        returns "not measured" otherwise. Read-only only — never fires a destructive tool."""
+        if not getattr(ctx.config, "response_bloat", False) or ctx.client is None:
+            return "not measured"
+        import json
+
+        from mcp_probe.contract.schema import synthesize_args
+        from mcp_probe.engines.contract import _is_write
+
+        seed = getattr(ctx.config, "seed", 42)
+        out: dict[str, int] = {}
+        for t in ctx.surface.tools:
+            if _is_write(t):
+                continue
+            try:
+                result = await ctx.client.call_tool(t.name, synthesize_args(t.input_schema, seed=seed))
+                payload = result.structured if result.structured is not None else result.content
+                tokens = counter.count(json.dumps(payload, default=str, ensure_ascii=False))
+            except Exception:
+                continue
+            out[t.name] = tokens
+            if tokens > RESPONSE_BLOAT_TOKENS:
+                findings.append(
+                    Finding(
+                        family=self.name,
+                        code="$5-response-bloat",
+                        severity=Severity.LOW,
+                        tool=t.name,
+                        message=f"tool '{t.name}' returns ~{tokens} tokens per call — a large "
+                        "response tax on top of the schema tax",
+                        remediation="paginate, summarize, or let the caller select fields",
+                        evidence={"response_tokens": tokens},
+                    )
+                )
+        return out
 
     @staticmethod
     def _authoritative_total(ctx: ProbeContext, tools: tuple[ToolDef, ...]) -> int | None:

@@ -91,3 +91,55 @@ async def test_falls_back_to_estimate_when_authoritative_unavailable(monkeypatch
     fs = await cost_mod.CostEngine(counter=HeuristicCounter()).run(ctx)
     assert fs.metrics["counter"] == "heuristic"
     assert "estimate" in fs.metrics["counter_note"]
+
+
+async def test_remediation_hint_on_heavy_toolset():
+    # A big toolset should emit the $6 lazy-loading hint with a projected saving (REQ-$6).
+    tools = [
+        {"name": f"t{i}", "description": "word " * 200, "inputSchema": {"type": "object"}}
+        for i in range(40)
+    ]
+    from mcp_probe.engines.cost import CostEngine
+
+    fs = await CostEngine(counter=HeuristicCounter()).run(make_ctx(tools))
+    hint = next((f for f in fs.findings if f.code == "$6-remediation"), None)
+    assert hint is not None
+    assert hint.evidence["deferrable_tokens"] > 0
+    assert "Tool Search" in hint.message
+
+
+async def test_no_remediation_hint_on_lean_toolset():
+    tools = [{"name": "get_x", "description": "Return x.", "inputSchema": {"type": "object"}}]
+    from mcp_probe.engines.cost import CostEngine
+
+    fs = await CostEngine(counter=HeuristicCounter()).run(make_ctx(tools))
+    assert not any(f.code == "$6-remediation" for f in fs.findings)
+
+
+async def test_response_bloat_not_measured_by_default():
+    tools = [{"name": "get_x", "description": "Return x.", "inputSchema": {"type": "object"}}]
+    from mcp_probe.engines.cost import CostEngine
+
+    fs = await CostEngine(counter=HeuristicCounter()).run(make_ctx(tools))
+    assert fs.metrics["response_tokens"] == "not measured"
+
+
+async def test_response_bloat_sampled_when_opted_in():
+    from mcp_probe.connect.client import FakeClient, InvokeResult
+    from mcp_probe.engines.cost import CostEngine
+
+    tools = [
+        {"name": "get_small", "description": "read", "inputSchema": {"type": "object"},
+         "annotations": {"readOnlyHint": True}},
+        {"name": "get_big", "description": "read", "inputSchema": {"type": "object"},
+         "annotations": {"readOnlyHint": True}},
+    ]
+    client = FakeClient(results={
+        "get_small": InvokeResult("get_small", False, content={"ok": 1}),
+        "get_big": InvokeResult("get_big", False, content=[], structured={"rows": ["word " * 400] * 5}),
+    })
+    ctx = make_ctx(tools, client=client, config=ProbeConfig(response_bloat=True))
+    fs = await CostEngine(counter=HeuristicCounter()).run(ctx)
+    rt = fs.metrics["response_tokens"]
+    assert isinstance(rt, dict) and rt["get_big"] > rt["get_small"]
+    assert any(f.code == "$5-response-bloat" and f.tool == "get_big" for f in fs.findings)

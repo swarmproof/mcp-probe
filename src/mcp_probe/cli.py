@@ -102,6 +102,8 @@ def _add_family_flags(sp: argparse.ArgumentParser) -> None:
     )
     sp.add_argument("--seed", type=int, default=None)
     sp.add_argument("--concurrency", type=int, default=None)
+    sp.add_argument("--response-bloat", action="store_true",
+                    help="sample read-only tool outputs to measure response token weight (REQ-$5)")
 
 
 def _families_from_args(args: argparse.Namespace) -> tuple[str, ...]:
@@ -132,6 +134,7 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
         "deep_security": _true_or_none(getattr(args, "deep_security", False)),
         "model": getattr(args, "model", None),
         "token_model": getattr(args, "token_model", None),
+        "response_bloat": _true_or_none(getattr(args, "response_bloat", False)),
         "seed": getattr(args, "seed", None),
         "concurrency": getattr(args, "concurrency", None),
         "families": _families_from_args(args) if hasattr(args, "all_families") else None,
