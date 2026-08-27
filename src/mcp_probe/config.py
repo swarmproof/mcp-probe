@@ -55,6 +55,9 @@ class ProbeConfig:
     # Opt-in authoritative token counting, e.g. "anthropic:claude-sonnet-5". Needs
     # ANTHROPIC_API_KEY; silently falls back to the offline tiktoken estimate otherwise.
     token_model: str | None = None
+    # Opt-in: sample read-only tool outputs to measure response token weight (REQ-$5).
+    # Live-only; adds invocation latency, so off by default. Never affects the fast-path score.
+    response_bloat: bool = False
 
     # --- performance ([net]) ---
     concurrency: int = 50
