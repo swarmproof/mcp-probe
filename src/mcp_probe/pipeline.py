@@ -57,6 +57,11 @@ async def run_probe(
         if owns_client and client is not None:
             await client.close()
 
+    # REQ-S6: fold Cisco readiness findings into Performance/Contract (reliability signals,
+    # not security). Opt-in via --deep-security; best-effort; never changes the score.
+    if getattr(config, "deep_security", False):
+        _fold_readiness(config, families)
+
     scorer = Scorer()
     result = scorer.score(families)
 
@@ -158,6 +163,23 @@ def _decide_exit(config: ProbeConfig, report: Report) -> ExitCode:
         if broke or dropped:
             return ExitCode.GATE_FAILURE
     return ExitCode.OK
+
+
+def _fold_readiness(config: ProbeConfig, families: dict[str, FamilyScore]) -> None:
+    """Run readiness adapters and distribute their family-tagged findings into the matching
+    (measured) FamilyScore. Findings are attached for the report; scores are unchanged."""
+    from mcp_probe.security.adapters import DEFAULT_READINESS_ADAPTERS
+
+    target = getattr(config, "target", "") or getattr(config, "static_path", "") or ""
+    for adapter in DEFAULT_READINESS_ADAPTERS:
+        if not adapter.available():
+            continue
+        for finding in adapter.scan(target):
+            fam = families.get(finding.family)
+            if fam is not None and fam.measured:
+                fam.findings.append(finding)
+                fam.metrics.setdefault("readiness_findings", 0)
+                fam.metrics["readiness_findings"] += 1
 
 
 def gather_metrics(report: Report) -> dict[str, Any]:
