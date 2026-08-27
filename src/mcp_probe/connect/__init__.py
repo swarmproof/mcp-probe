@@ -12,7 +12,11 @@ from mcp_probe.connect.client import (
     InvokeResult,
     MCPClientProtocol,
 )
-from mcp_probe.connect.discover import surface_from_dump, surface_from_tools
+from mcp_probe.connect.discover import (
+    surface_from_dump,
+    surface_from_payload,
+    surface_from_tools,
+)
 
 __all__ = [
     "ConnectRecord",
@@ -20,5 +24,6 @@ __all__ = [
     "InvokeResult",
     "MCPClientProtocol",
     "surface_from_dump",
+    "surface_from_payload",
     "surface_from_tools",
 ]

@@ -72,15 +72,22 @@ def surface_from_tools(
 
 
 def surface_from_dump(path: str | Path) -> ServerSurface:
-    """Load a ``tools/list`` dump for ``static`` mode. Accepts either a bare list, a
-    ``{"tools": [...]}`` object, or a full ``{"result": {"tools": [...]}}`` JSON-RPC frame."""
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    """Load a ``tools/list`` dump file for ``static`` mode (see :func:`surface_from_payload`)."""
+    return surface_from_payload(json.loads(Path(path).read_text(encoding="utf-8")))
+
+
+def surface_from_payload(data: Any) -> ServerSurface:
+    """Build a surface from an in-memory ``tools/list`` payload. Accepts a bare list, a
+    ``{"tools": [...]}`` object, or a full ``{"result": {"tools": [...]}}`` JSON-RPC frame.
+    Powers both file-based ``static`` mode and the registry scoring API."""
     if isinstance(data, list):
         payload: dict[str, Any] = {"tools": data}
-    elif "result" in data and isinstance(data["result"], dict):
+    elif isinstance(data, dict) and "result" in data and isinstance(data["result"], dict):
         payload = data["result"]
-    else:
+    elif isinstance(data, dict):
         payload = data
+    else:
+        raise ValueError("payload must be a list or object with a 'tools' array")
     return surface_from_tools(
         payload.get("tools", []),
         resources=payload.get("resources"),
