@@ -39,6 +39,10 @@ llm = [
     "anthropic>=0.40",       # authoritative token counts + a cloud legibility provider
     "openai>=1.40",          # OpenAI-compatible endpoints (incl. Ollama, LM Studio)
 ]
+registry = [
+    "starlette>=0.37",       # the hosted scoring API (mcp-probe serve)
+    "uvicorn>=0.30",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",

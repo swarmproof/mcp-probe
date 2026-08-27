@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
     cmp_.add_argument("current", help="current report JSON")
     cmp_.add_argument("--markdown", action="store_true", help="emit the sticky PR-comment markdown")
     cmp_.add_argument("--fail-on-regression", action="store_true", help="exit 1 if any family regressed")
+
+    # -- serve --
+    serve = sub.add_parser("serve", help="run the registry scoring API (needs the [registry] extra)")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8080)
     return p
 
 
@@ -191,7 +196,21 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_fix(args)
     if args.command == "compare":
         return _cmd_compare(args)
+    if args.command == "serve":
+        return _cmd_serve(args)
     return _cmd_run(args)
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    try:
+        from mcp_probe.registry import serve
+    except ImportError:
+        print("mcp-probe: the registry API needs the [registry] extra: "
+              "pip install 'mcp-probe[registry]'", file=sys.stderr)
+        return int(ExitCode.PROBE_ERROR)
+    print(f"mcp-probe: registry scoring API on http://{args.host}:{args.port}", file=sys.stderr)
+    serve(host=args.host, port=args.port)
+    return int(ExitCode.OK)
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
