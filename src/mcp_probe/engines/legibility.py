@@ -195,8 +195,10 @@ class LegibilityEngine(EngineBase):
             tool = surface.tool(name)
             if tool is None:
                 continue
-            rewrite = model.propose_rewrite(name, tool.description or "", confusers.get(name, []))
-            rewrites.append({"tool": name, "rewrite": rewrite})
+            old = tool.description or ""
+            rewrite = model.propose_rewrite(name, old, confusers.get(name, []))
+            # Carry the exact old text so `mcp-probe fix` can find-and-replace it safely.
+            rewrites.append({"tool": name, "rewrite": rewrite, "old": old})
         return rewrites
 
     @staticmethod
@@ -221,6 +223,8 @@ class LegibilityEngine(EngineBase):
                     tool=entry["tool"],
                     message=f"'{entry['tool']}' is hard to select; a clearer description would help",
                     remediation=f"proposed: {entry['rewrite']}",
+                    # `mcp-probe fix` consumes old/rewrite to apply the change to source (REQ-L7).
+                    evidence={"old": entry.get("old", ""), "rewrite": entry["rewrite"]},
                 )
             )
         return findings
