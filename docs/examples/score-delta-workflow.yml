@@ -1,0 +1,50 @@
+# Example: post a sticky "MCP Quality Score change" comment on every PR.
+# Copy to .github/workflows/ in your MCP server repo and set MCP_TARGET.
+# Scores the base and the PR head, diffs them, and updates one comment in place.
+name: MCP Quality delta
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write   # to post/update the comment
+
+env:
+  MCP_TARGET: "python my_server.py"   # <-- your server's launch command
+
+jobs:
+  score-delta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install mcp-probe
+
+      - name: Score PR head
+        run: mcp-probe run "$MCP_TARGET" --json > head.json
+
+      - name: Score base
+        run: |
+          git checkout ${{ github.event.pull_request.base.sha }} -- . || git checkout ${{ github.event.pull_request.base.sha }}
+          mcp-probe run "$MCP_TARGET" --json > base.json
+          git checkout ${{ github.sha }} -- . 2>/dev/null || true
+
+      - name: Build the delta comment
+        run: mcp-probe compare base.json head.json --markdown > delta.md
+
+      - name: Post or update the sticky comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # find our previous comment by its hidden marker, edit it if present else create
+          id=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" \
+                 --jq '.[] | select(.body | contains("<!-- mcp-probe-score-delta -->")) | .id' | head -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$id" -F body=@delta.md
+          else
+            gh pr comment "$PR" --body-file delta.md
+          fi
