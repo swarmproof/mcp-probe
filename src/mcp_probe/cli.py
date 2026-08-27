@@ -63,6 +63,13 @@ def build_parser() -> argparse.ArgumentParser:
     fix.add_argument("--apply", action="store_true", help="write changes (default: dry-run diff)")
     fix.add_argument("--pr", action="store_true", help="apply, commit on a branch, and open a PR via gh")
     fix.add_argument("--allow-writes", action="store_true", help=argparse.SUPPRESS)
+
+    # -- compare --
+    cmp_ = sub.add_parser("compare", help="diff two report JSONs into a score-delta table")
+    cmp_.add_argument("baseline", help="baseline report JSON (or a history entry)")
+    cmp_.add_argument("current", help="current report JSON")
+    cmp_.add_argument("--markdown", action="store_true", help="emit the sticky PR-comment markdown")
+    cmp_.add_argument("--fail-on-regression", action="store_true", help="exit 1 if any family regressed")
     return p
 
 
@@ -76,6 +83,8 @@ def _add_common_flags(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--snapshot-path", default=None)
     sp.add_argument("--stdio-timeout", type=float, default=None)
     sp.add_argument("--transport", choices=["auto", "stdio", "streamable-http", "sse"], default=None)
+    sp.add_argument("--record", metavar="PATH", default=None, help="append this run to a history JSONL")
+    sp.add_argument("--commit", default=None, help="commit SHA for the history entry (or $GITHUB_SHA)")
 
 
 def _add_family_flags(sp: argparse.ArgumentParser) -> None:
@@ -147,6 +156,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_snapshot(args)
     if args.command == "fix":
         return _cmd_fix(args)
+    if args.command == "compare":
+        return _cmd_compare(args)
     return _cmd_run(args)
 
 
@@ -175,8 +186,50 @@ def _cmd_run(args: argparse.Namespace) -> int:
         Path(config.html_out).write_text(render_html(report), encoding="utf-8")
     if config.emit_stampede:
         _write_stampede_seed(report, config.emit_stampede)
+    if getattr(args, "record", None):
+        _record_history(args, report)
 
     return int(outcome.exit_code)
+
+
+def _record_history(args: argparse.Namespace, report: Any) -> None:
+    import datetime
+    import os
+
+    from mcp_probe.history import append_history, entry_from_report
+    from mcp_probe.report import report_to_dict
+
+    commit = args.commit or os.environ.get("GITHUB_SHA", "")
+    ts = datetime.datetime.now(datetime.UTC).isoformat()
+    entry = entry_from_report(report_to_dict(report, include_meta=False), commit=commit, ts=ts)
+    append_history(args.record, entry)
+
+
+def _cmd_compare(args: argparse.Namespace) -> int:
+    import json
+
+    from mcp_probe.history import compute_delta, render_delta_markdown
+
+    baseline = json.loads(Path(args.baseline).read_text(encoding="utf-8"))
+    current = json.loads(Path(args.current).read_text(encoding="utf-8"))
+    delta = compute_delta(baseline, current)
+
+    if args.markdown:
+        print(render_delta_markdown(delta), end="")
+    else:
+        oc = delta.overall_change
+        oc_str = "→0" if oc == 0 else (f"{oc:+.0f}" if oc is not None else "n/a")
+        print(f"overall: {delta.grade_before} → {delta.grade_after} ({oc_str})")
+        if delta.rubric_mismatch:
+            print("  rubric changed — per-family comparison skipped")
+        for name, (b, a) in delta.per_family.items():
+            bs = "—" if b is None else f"{b:.0f}"
+            as_ = "—" if a is None else f"{a:.0f}"
+            print(f"  {name:12} {bs:>4} → {as_:>4}")
+
+    if args.fail_on_regression and delta.has_regression:
+        return int(ExitCode.GATE_FAILURE)
+    return int(ExitCode.OK)
 
 
 def _cmd_snapshot(args: argparse.Namespace) -> int:
