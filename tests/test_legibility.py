@@ -5,11 +5,11 @@ Never calls a real LLM. Asserts exact selection-rate + confusion matrix, proves 
 
 from __future__ import annotations
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.engines.legibility import LegibilityEngine, build_goals
-from mcp_probe.legibility.lints import lint_descriptions
-from mcp_probe.legibility.model import StubModel
-from mcp_probe.legibility.similarity import confusable_shortlist
+from mcp_quality.config import ProbeConfig
+from mcp_quality.engines.legibility import LegibilityEngine, build_goals
+from mcp_quality.legibility.lints import lint_descriptions
+from mcp_quality.legibility.model import StubModel
+from mcp_quality.legibility.similarity import confusable_shortlist
 
 from .conftest import make_ctx, make_surface
 

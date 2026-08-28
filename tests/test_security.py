@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import json
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.engines.security import SecurityEngine
-from mcp_probe.models import Finding, Severity
-from mcp_probe.security import OWASP
-from mcp_probe.security.adapters import dedup_findings
-from mcp_probe.security.patterns import (
+from mcp_quality.config import ProbeConfig
+from mcp_quality.engines.security import SecurityEngine
+from mcp_quality.models import Finding, Severity
+from mcp_quality.security import OWASP
+from mcp_quality.security.adapters import dedup_findings
+from mcp_quality.security.patterns import (
     scan_dangerous_capabilities,
     scan_injection,
     scan_secrets,
@@ -96,7 +96,7 @@ async def test_deep_security_folds_external_findings():
 
 def test_cisco_adapter_parses_documented_schema():
     # The documented Cisco mcp-scanner JSON (nested results[].findings[]) → flat Findings.
-    from mcp_probe.security.adapters import CiscoAdapter
+    from mcp_quality.security.adapters import CiscoAdapter
 
     cisco_json = json.dumps({
         "scan_target": "http://localhost:8000/mcp",

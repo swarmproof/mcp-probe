@@ -224,7 +224,7 @@ stampede-report.html
 .env
 .venv/
 
-# mcp-probe runtime artifacts (the snapshot baseline IS committed; the cache is not)
-.mcp-probe/cache/
+# mcp-quality runtime artifacts (the snapshot baseline IS committed; the cache is not)
+.mcp-quality/cache/
 *.badge.svg
-mcp-probe-report.json
+mcp-quality-report.json

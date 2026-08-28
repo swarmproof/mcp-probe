@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import json
 
-from mcp_probe.cli import main
-from mcp_probe.history import (
+from mcp_quality.cli import main
+from mcp_quality.history import (
     COMMENT_MARKER,
     append_history,
     compute_delta,

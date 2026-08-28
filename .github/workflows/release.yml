@@ -1,9 +1,9 @@
 name: Release
 
-# Publishes to PyPI when a GitHub Release is published. Uses PyPI Trusted Publishing
-# (OIDC) — no API token/secret is stored anywhere. One-time setup on pypi.org:
-#   PyPI → project → Publishing → add a trusted publisher:
-#     owner=swarmproof  repo=mcp-probe  workflow=release.yml  environment=pypi
+# Publishes the `mcp-quality` package to PyPI when a GitHub Release is published. Uses
+# PyPI Trusted Publishing (OIDC) — no API token/secret is stored anywhere. One-time setup:
+#   pypi.org → Publishing → add a pending publisher:
+#     PyPI project=mcp-quality  owner=swarmproof  repo=mcp-probe  workflow=release.yml  environment=pypi
 # Then: create a GitHub Release tagged v0.1.0 → this workflow builds and uploads.
 
 on:

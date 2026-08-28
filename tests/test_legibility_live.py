@@ -36,11 +36,11 @@ def _requires_ollama():
 
 
 async def test_live_legibility_detects_confusable_pair(tmp_path):
-    from mcp_probe.config import ProbeConfig
-    from mcp_probe.connect.discover import surface_from_tools
-    from mcp_probe.engines.legibility import LegibilityEngine
-    from mcp_probe.legibility.model import build_model
-    from mcp_probe.models import ProbeContext
+    from mcp_quality.config import ProbeConfig
+    from mcp_quality.connect.discover import surface_from_tools
+    from mcp_quality.engines.legibility import LegibilityEngine
+    from mcp_quality.legibility.model import build_model
+    from mcp_quality.models import ProbeContext
 
     tools = [
         {"name": "delete_record", "description": "Remove a record by id.", "inputSchema": {"type": "object"}},
@@ -64,11 +64,11 @@ async def test_live_legibility_detects_confusable_pair(tmp_path):
 
 
 async def test_live_cache_hit_is_free(tmp_path):
-    from mcp_probe.config import ProbeConfig
-    from mcp_probe.connect.discover import surface_from_tools
-    from mcp_probe.engines.legibility import LegibilityEngine
-    from mcp_probe.legibility.model import build_model
-    from mcp_probe.models import ProbeContext
+    from mcp_quality.config import ProbeConfig
+    from mcp_quality.connect.discover import surface_from_tools
+    from mcp_quality.engines.legibility import LegibilityEngine
+    from mcp_quality.legibility.model import build_model
+    from mcp_quality.models import ProbeContext
 
     tools = [{"name": "get_weather", "description": "Weather for a city.", "inputSchema": {"type": "object"}}]
     surface = surface_from_tools(tools)

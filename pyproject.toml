@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mcp-probe"
+name = "mcp-quality"
 version = "0.1.0"
 description = "The CI quality suite for MCP servers — lint, contract-test, benchmark, and load-test your MCP server before you ship it."
 readme = "README.md"
@@ -30,7 +30,7 @@ dependencies = [
     "jsonschema>=4.21",      # Contract: input/output schema validation (REQ-C3, REQ-C4)
     "tiktoken>=0.7",         # Cost: deterministic offline token counting (REQ-$4)
     "rich>=13.7",            # terminal report renderer (oxblood theme)
-    "tomli>=2.0; python_version < '3.11'",  # .mcp-probe.toml (stdlib tomllib on 3.11+)
+    "tomli>=2.0; python_version < '3.11'",  # .mcp-quality.toml (stdlib tomllib on 3.11+)
 ]
 
 [project.optional-dependencies]
@@ -40,7 +40,7 @@ llm = [
     "openai>=1.40",          # OpenAI-compatible endpoints (incl. Ollama, LM Studio)
 ]
 registry = [
-    "starlette>=0.37",       # the hosted scoring API (mcp-probe serve)
+    "starlette>=0.37",       # the hosted scoring API (mcp-quality serve)
     "uvicorn>=0.30",
 ]
 dev = [
@@ -57,10 +57,10 @@ Repository = "https://github.com/swarmproof/mcp-probe"
 Issues = "https://github.com/swarmproof/mcp-probe/issues"
 
 [project.scripts]
-mcp-probe = "mcp_probe.cli:main"
+mcp-quality = "mcp_quality.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mcp_probe"]
+packages = ["src/mcp_quality"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -86,8 +86,8 @@ ignore = ["SIM102", "SIM108"]
 
 [tool.ruff.lint.per-file-ignores]
 # HTML/SVG template literals can't wrap cleanly.
-"src/mcp_probe/report/badge.py" = ["E501"]
-"src/mcp_probe/report/render.py" = ["E501"]
+"src/mcp_quality/report/badge.py" = ["E501"]
+"src/mcp_quality/report/render.py" = ["E501"]
 # Tests favour readable inline fixtures over strict wrapping.
 "tests/**" = ["E501"]
 # One-shot utility scripts: blocking file I/O and long table strings are fine.

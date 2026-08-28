@@ -21,15 +21,15 @@ python -m venv .venv && .venv/bin/pip install -e ".[dev]"   # setup
 .venv/bin/ruff check src/ tests/                  # lint (line-length 110)
 .venv/bin/mypy src/                               # types (strict)
 
-.venv/bin/mcp-probe run ".venv/bin/python tests/servers/good_server.py"   # live probe
-.venv/bin/mcp-probe static tests/servers/dump.mcp.json --json             # offline
-.venv/bin/mcp-probe run "…" --all --model ollama:qwen2.5-3b               # all five families
+.venv/bin/mcp-quality run ".venv/bin/python tests/servers/good_server.py"   # live probe
+.venv/bin/mcp-quality static tests/servers/dump.mcp.json --json             # offline
+.venv/bin/mcp-quality run "…" --all --model ollama:qwen2.5-3b               # all five families
 ```
 
 Tests spawn fixture servers with the **same interpreter running pytest** (`sys.executable`),
 so they need the SDK installed in that env — always run via `.venv/bin/pytest`.
 
-### Package layout (`src/mcp_probe/`)
+### Package layout (`src/mcp_quality/`)
 
 - `models.py` — the frozen data model (`ServerSurface`/`Finding`/`FamilyScore`/`Report`/`CheckEngine`).
 - `config.py` · `cli.py` · `exit_codes.py` — config precedence, the 4 subcommands, CI exit codes.
@@ -40,11 +40,11 @@ so they need the SDK installed in that env — always run via `.venv/bin/pytest`
 - `scoring/` · `snapshot/` · `report/` · `handoff.py` · `trace.py` — aggregation & outputs.
 - `tests/servers/` — fixture MCP servers (the TEST-PLAN §2 matrix) + `dump.mcp.json`.
 
-## What mcp-probe is
+## What mcp-quality is
 
 The **CI quality suite for MCP servers** — "the `pytest` + `lighthouse` for the servers agents depend on." It connects to an MCP server, discovers its surface, and grades it across **five check families** into a single A–F **MCP Quality Score**, designed to run as a CI gate with a README badge.
 
-Positioning is load-bearing and deliberate: security scanners (mcp-scan, Cisco) answer *"is this server dangerous?"*; mcp-probe answers *"is this server good?"* It treats security as **one light check**, defers deep security to the incumbents via `--deep-security` integration (never reimplements them), and unifies the quality *point* tools (credits mcp-xray as prior art) into a CI-native **suite and gate**. Do not drift the messaging toward "another scanner."
+Positioning is load-bearing and deliberate: security scanners (mcp-scan, Cisco) answer *"is this server dangerous?"*; mcp-quality answers *"is this server good?"* It treats security as **one light check**, defers deep security to the incumbents via `--deep-security` integration (never reimplements them), and unifies the quality *point* tools (credits mcp-xray as prior art) into a CI-native **suite and gate**. Do not drift the messaging toward "another scanner."
 
 The five families: **Contract** (LLM-free spec/schema/determinism), **Legibility** (the differentiator — agent-comprehension score + disambiguation matrix), **Cost** (toolset token weight), **Performance** (concurrent MCP-semantic load), **Security-lite** (OWASP MCP Top 10 basics + integration adapter).
 
@@ -89,7 +89,7 @@ Weighted mean of five 0–100 sub-scores → letter grade. Default weights: **Co
 
 ### Shared primitives (vendored, bound to stampede's contracts)
 
-mcp-probe is project #3 of the seven-project **Swarm Proof** toolkit and reuses four primitives. The portfolio decision is **vendor-first**: copy minimal versions now rather than wait on extraction (~stampede v0.2). But the *contracts* are authoritative and must not be forked:
+mcp-quality is project #3 of the seven-project **Swarm Proof** toolkit and reuses four primitives. The portfolio decision is **vendor-first**: copy minimal versions now rather than wait on extraction (~stampede v0.2). But the *contracts* are authoritative and must not be forked:
 - **concurrency-core** — the Performance load driver imports stampede's `Scheduler`/`Executor` **Protocol** and supplies uniform MCP-client tasks (not persona logic).
 - **report-renderer** — render via the shared `RunReport` model (oxblood style); register a `QualityScoreReport` view over it.
 - **trace-format** — **the OpenTelemetry GenAI semantic-conventions *profile*** (`gen_ai.*` spans + the `swarmproof.*` extension), *not* a bespoke schema. The `stampede --from-probe` handoff depends on cross-tool trace compatibility — consume the profile, don't fork it.
@@ -99,5 +99,5 @@ mcp-probe is project #3 of the seven-project **Swarm Proof** toolkit and reuses 
 
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), atomic, imperative mood, no AI attribution/signatures. Commit progressively as you go.
 - **Testability first:** because engines are pure functions, prefer a component test that feeds a fixed `ServerSurface` and asserts an exact `FamilyScore` over any test that needs a network or a real model. Live/LLM behavior belongs in integration/E2E with fakes (`StubModel`) or the opt-in, network-gated `-m live_llm` suite (excluded from the default/PR run).
-- **Dogfood:** the intended CI runs `mcp-probe` against its own `tests/servers/` fixtures — the tool must grade its own sample servers correctly (see `docs/TEST-PLAN.md` §9).
+- **Dogfood:** the intended CI runs `mcp-quality` against its own `tests/servers/` fixtures — the tool must grade its own sample servers correctly (see `docs/TEST-PLAN.md` §9).
 - **Honest over impressive:** document boundaries; never zero an unmeasured check; mark non-canonical scores as such.

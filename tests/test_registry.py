@@ -1,12 +1,12 @@
 """Registry scoring API tests (issue #10) — POST /score, /verify, /healthz via the
-Starlette TestClient (no real network). Parity with `mcp-probe static`."""
+Starlette TestClient (no real network). Parity with `mcp-quality static`."""
 
 from __future__ import annotations
 
 import pytest
 
-from mcp_probe import RUBRIC_VERSION
-from mcp_probe.registry import score_payload
+from mcp_quality import RUBRIC_VERSION
+from mcp_quality.registry import score_payload
 
 # The Starlette TestClient emits a deprecation warning we don't control; scope-ignore it.
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
@@ -45,7 +45,7 @@ async def test_score_payload_flags_injection():
 def _client():
     from starlette.testclient import TestClient
 
-    from mcp_probe.registry import build_app
+    from mcp_quality.registry import build_app
 
     return TestClient(build_app())
 
@@ -61,7 +61,7 @@ def test_score_endpoint():
     resp = _client().post("/score", json=GOOD_PAYLOAD)
     assert resp.status_code == 200
     body = resp.json()
-    assert body["schema"] == "mcp-probe/report@1"
+    assert body["schema"] == "mcp-quality/report@1"
     assert body["overall"]["grade"] in ("A", "B")
 
 

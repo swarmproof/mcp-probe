@@ -27,7 +27,7 @@ jobs:
         run: pytest -m "not live_llm" -q
       - name: Coverage floor on the correctness-critical core
         # scorer/connect/snapshot are the parts that must not silently break (TEST-PLAN §9.3)
-        run: pytest -m "not live_llm" --cov=mcp_probe.scoring --cov=mcp_probe.snapshot --cov-fail-under=85 -q
+        run: pytest -m "not live_llm" --cov=mcp_quality.scoring --cov=mcp_quality.snapshot --cov-fail-under=85 -q
 
   dogfood:
     name: dogfood the gate + badge
@@ -40,14 +40,14 @@ jobs:
       - run: pip install -e .
       # The gate must pass a good server and fail a bloated one (proves the gate works live).
       - name: good_server passes --fail-under B
-        run: mcp-probe run "python tests/servers/good_server.py" --fail-under B
+        run: mcp-quality run "python tests/servers/good_server.py" --fail-under B
       - name: bloated_server fails --fail-under A
         run: |
-          if mcp-probe run "python tests/servers/bloated_server.py" --fail-under A; then
+          if mcp-quality run "python tests/servers/bloated_server.py" --fail-under A; then
             echo "expected the gate to FAIL the bloated server"; exit 1
           fi
       - name: publish our own badge (the flywheel starts at home)
-        run: mcp-probe badge "python tests/servers/good_server.py" --out mcp-probe-badge.svg
+        run: mcp-quality badge "python tests/servers/good_server.py" --out mcp-quality-badge.svg
 
   determinism:
     name: fast-path determinism guard
@@ -62,8 +62,8 @@ jobs:
       # comparing the report bodies with a stable serialization.
       - name: run twice, diff the JSON
         run: |
-          mcp-probe static tests/servers/dump.mcp.json --json > a.json
-          mcp-probe static tests/servers/dump.mcp.json --json > b.json
+          mcp-quality static tests/servers/dump.mcp.json --json > a.json
+          mcp-quality static tests/servers/dump.mcp.json --json > b.json
           python - <<'PY'
           import json
           a = json.load(open("a.json")); b = json.load(open("b.json"))
@@ -82,4 +82,4 @@ jobs:
           python-version: "3.12"
       - run: pip install -e .
       - name: static scan needs no network
-        run: mcp-probe static tests/servers/dump.mcp.json --json
+        run: mcp-quality static tests/servers/dump.mcp.json --json

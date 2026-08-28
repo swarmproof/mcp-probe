@@ -1,8 +1,8 @@
-# mcp-probe — Design Specification & PRD
+# mcp-quality — Design Specification & PRD
 ### The CI quality suite for MCP server builders
 *The wedge project · v1.0 spec*
 
-> **mcp-probe** — lint, contract-test, benchmark, and load-test your MCP server before you ship it. The `pytest` + `lighthouse` for the servers agents depend on.
+> **mcp-quality** — lint, contract-test, benchmark, and load-test your MCP server before you ship it. The `pytest` + `lighthouse` for the servers agents depend on.
 
 ---
 
@@ -14,7 +14,7 @@ The security-scanning lane is **already contested** and I won't march into it he
 
 **Every one of those tools answers "is this server *malicious/vulnerable*?"** The *quality* question — "is this server *any good*?" — is no longer untouched either: as of mid-2026 there are **point tools** for it. **mcp-xray** scores token-tax + tool-confusion into a single 0–100 grade (offline/live), and **Cisco's mcp-scanner** added a readiness analyzer (timeouts/retries/error-handling heuristics). Credit where due — they prove the demand.
 
-**But those are graded X-rays you run by hand. There is still no `lighthouse`/`pytest` for MCP** — no CI-native *suite* that unifies the quality dimensions (contract, legibility, cost, performance, light security) into one graded gate, catches *quality regressions across commits*, prints a badge, and hands off to a full behavioral simulation. mcp-xray tells you your score; mcp-probe is the thing in `.github/workflows` that *blocks the merge* when the score regresses. That's the white space — a **suite and a gate**, not another point score. mcp-probe is a **quality-and-reliability suite** that treats security as *one* of several checks (deferring deep security to the specialists via integration, not reinvention) and unifies the quality point tools rather than competing with them.
+**But those are graded X-rays you run by hand. There is still no `lighthouse`/`pytest` for MCP** — no CI-native *suite* that unifies the quality dimensions (contract, legibility, cost, performance, light security) into one graded gate, catches *quality regressions across commits*, prints a badge, and hands off to a full behavioral simulation. mcp-xray tells you your score; mcp-quality is the thing in `.github/workflows` that *blocks the merge* when the score regresses. That's the white space — a **suite and a gate**, not another point score. mcp-quality is a **quality-and-reliability suite** that treats security as *one* of several checks (deferring deep security to the specialists via integration, not reinvention) and unifies the quality point tools rather than competing with them.
 
 This is a sharper, more defensible wedge than "another scanner" or "another score," and it's native to the author (professional MCP-server builder).
 
@@ -31,7 +31,7 @@ MCP servers are shipped with no equivalent of the web's quality tooling. Builder
 ### 1.4 Users & JTBD
 
 1. **MCP server builders** — "Gate my releases on MCP quality like I gate on tests and lint." (Primary.)
-2. **Teams adopting third-party MCP servers** — "Vet this server before I let my agents use it." (Overlaps security tools — where mcp-probe *integrates* mcp-scan rather than competing.)
+2. **Teams adopting third-party MCP servers** — "Vet this server before I let my agents use it." (Overlaps security tools — where mcp-quality *integrates* mcp-scan rather than competing.)
 3. **Registries / marketplaces** — "Score submitted servers automatically."
 
 ### 1.5 Goals & non-goals
@@ -42,7 +42,7 @@ MCP servers are shipped with no equivalent of the web's quality tooling. Builder
 
 ### 1.6 Success metrics
 
-- North star: repos with `mcp-probe` in their CI workflow.
+- North star: repos with `mcp-quality` in their CI workflow.
 - Launch: 500+ stars in 30 days; adoption by ≥1 MCP registry for automated scoring within 6 months.
 - The "MCP Quality Score" badge appears on server READMEs (the distribution flywheel).
 
@@ -53,7 +53,7 @@ MCP servers are shipped with no equivalent of the web's quality tooling. Builder
 ### 2.1 The five check families
 
 ```
-mcp-probe ──▶ connect (stdio / HTTP-SSE) ──▶ discover tools/resources/prompts
+mcp-quality ──▶ connect (stdio / HTTP-SSE) ──▶ discover tools/resources/prompts
                                                 │
    ┌───────────┬───────────────┬───────────────┼───────────────┬──────────────┐
    ▼           ▼               ▼               ▼               ▼              ▼
@@ -95,7 +95,7 @@ of results  disambiguation  budget         SSE stability    integrates      badg
 
 - **Terminal report:** graded (A–F) per family + overall **MCP Quality Score**, oxblood-styled via the shared renderer.
 - **JSON** for CI gating (`--fail-under B`).
-- **Badge** (`mcp-probe: A`) for READMEs — the distribution mechanism.
+- **Badge** (`mcp-quality: A`) for READMEs — the distribution mechanism.
 - **CI mode:** `static` subcommand scans pre-generated MCP JSON offline (matching how Cisco's scanner supports air-gapped CI), so no live server needed in the pipeline.
 
 ### 2.3 Tech stack
@@ -106,7 +106,7 @@ Python 3.11+; official MCP SDK; provider-agnostic small-model layer for legibili
 
 - **Crowded security perception** → messaging leads with *quality* ("lighthouse for MCP"), names the security tools as friends it integrates, never competes on their turf.
 - **Legibility scoring is LLM-dependent (cost/flakiness)** → small cached models, seedable, and it's opt-in; Contract/Cost/Performance work with zero LLM for the CI-critical path.
-- **"Why not just mcp-scan?"** → mcp-scan tells you if a server is *dangerous*; mcp-probe tells you if yours is *good* — different job, and mcp-probe runs mcp-scan for you on request.
+- **"Why not just mcp-scan?"** → mcp-scan tells you if a server is *dangerous*; mcp-quality tells you if yours is *good* — different job, and mcp-quality runs mcp-scan for you on request.
 
 ---
 
@@ -118,4 +118,4 @@ Python 3.11+; official MCP SDK; provider-agnostic small-model layer for legibili
 
 ## 4. LAUNCH
 
-"Show HN: mcp-probe – lighthouse for MCP servers (lint, benchmark, load-test in CI)." Lead the demo with the legibility misuse-matrix and the token-cost number — the two things no other tool shows — not with security (crowded) or RPS (boring). Pair with an essay: "Your MCP server has a quality score, and it's probably a C." Offer to run mcp-probe publicly on 20 popular MCP servers and publish the leaderboard — instant attention, instant credibility, instant content.
+"Show HN: mcp-quality – lighthouse for MCP servers (lint, benchmark, load-test in CI)." Lead the demo with the legibility misuse-matrix and the token-cost number — the two things no other tool shows — not with security (crowded) or RPS (boring). Pair with an essay: "Your MCP server has a quality score, and it's probably a C." Offer to run mcp-quality publicly on 20 popular MCP servers and publish the leaderboard — instant attention, instant credibility, instant content.

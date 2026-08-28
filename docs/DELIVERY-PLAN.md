@@ -1,6 +1,6 @@
-# mcp-probe — DELIVERY PLAN
+# mcp-quality — DELIVERY PLAN
 
-> How the wedge ships. mcp-probe is **#3 in the portfolio but the first *code* tool to launch** (after the two presence repos, #7 awesome-agent-reliability and #6 agent-postmortems). Portfolio window: **Weeks 2–6** (Phase B). Companion to `./PRD.md` and `./ARCHITECTURE.md`.
+> How the wedge ships. mcp-quality is **#3 in the portfolio but the first *code* tool to launch** (after the two presence repos, #7 awesome-agent-reliability and #6 agent-postmortems). Portfolio window: **Weeks 2–6** (Phase B). Companion to `./PRD.md` and `./ARCHITECTURE.md`.
 >
 > Effort sizing assumes the author working evenings/weekends alongside Xerberus (honest capacity from the portfolio roadmap), so the plan is sequenced for **fastest credible launch**, not maximal scope.
 
@@ -10,7 +10,7 @@
 
 1. **Fast path first.** Contract + Cost + Performance are LLM-free and deterministic. They are the smallest, most reliable, most demoable slice — build them first; they alone justify "pytest for MCP."
 2. **Legibility is the headline but the hardest.** It is the launch differentiator and the riskiest (LLM cost/flakiness). Build it *third*, after the fast path proves the pipeline, so a slip there doesn't block a launchable tool.
-3. **Vendor the shared primitives.** Don't wait on stampede to extract `concurrency-core`/`report-renderer`/`trace-format`. Copy minimal versions now (portfolio decision: vendor-first). mcp-probe can even be where `report-renderer`'s terminal path is first proven.
+3. **Vendor the shared primitives.** Don't wait on stampede to extract `concurrency-core`/`report-renderer`/`trace-format`. Copy minimal versions now (portfolio decision: vendor-first). mcp-quality can even be where `report-renderer`'s terminal path is first proven.
 4. **Cooperate, don't build.** `--deep-security` is a shell-out adapter — days, not weeks. Never on the critical path to launch.
 5. **The leaderboard is content, not scope.** Scoring 20 public servers is a *use* of v0.1, produced during launch week — no extra engineering.
 
@@ -31,7 +31,7 @@ Scope: Legibility **auto-fix PR** (REQ-L7), **registry scoring API** + hosted st
 
 ### v0.3 — "the on-ramp" · target: aligned with stampede v0.1 (Weeks 12–16)
 
-**Definition:** mcp-probe becomes the front door to the whole toolkit.
+**Definition:** mcp-quality becomes the front door to the whole toolkit.
 Scope: **`stampede --from-probe` handoff** (the emit-stampede contract, ARCHITECTURE §9), multi-model consensus legibility (REQ-L8), distributed load (Ray), marketplace partnerships.
 
 ---
@@ -43,7 +43,7 @@ Effort scale: **XS** ≤0.5d · **S** ~1d · **M** ~2–3d · **L** ~1wk (evenin
 | WBS | Work item | Family/area | Effort | Depends on | DoD |
 |---|---|---|---|---|---|
 | **W0. Scaffolding** | | | | | |
-| 0.1 | Package skeleton, CLI (`run`/`static`/`snapshot`/`badge`), config loader, exit codes | infra | S | — | `mcp-probe --help` works; CI stub green |
+| 0.1 | Package skeleton, CLI (`run`/`static`/`snapshot`/`badge`), config loader, exit codes | infra | S | — | `mcp-quality --help` works; CI stub green |
 | 0.2 | Core data model (`ServerSurface`, `Finding`, `FamilyScore`, `Report`, `CheckEngine`) | infra | S | 0.1 | types + serialization round-trip tested |
 | 0.3 | Vendor `report-renderer` (terminal path, oxblood) | shared | M | 0.2 | graded report renders in terminal |
 | 0.4 | Vendor `trace-format` schema + sink | shared | XS | 0.2 | engines can emit trace events |
@@ -71,7 +71,7 @@ Effort scale: **XS** ≤0.5d · **S** ~1d · **M** ~2–3d · **L** ~1wk (evenin
 | 5.1 | Scorer: weighted mean + hard-gates + letter grades + `rubric_version` | scoring | M | 2.*,3.*,4.* | overall MCP Quality Score computed |
 | 5.2 | JSON emitter + `--fail-under` + exit codes | outputs | S | 5.1 | CI gate fails/passes correctly |
 | 5.3 | Snapshot store + diff + `--no-regressions` + `snapshot --update` | outputs | M | 5.1 | "commit broke a contract" surfaces |
-| 5.4 | Badge emitter (SVG + shields JSON endpoint) | outputs | S | 5.1 | `mcp-probe: A` badge renders |
+| 5.4 | Badge emitter (SVG + shields JSON endpoint) | outputs | S | 5.1 | `mcp-quality: A` badge renders |
 | 5.5 | HTML report view | outputs | S | 0.3,5.1 | shareable HTML report |
 | **W6. Launch prep** | | | | | |
 | 6.1 | README demo GIF (legibility matrix + token number), GH Action example | docs | S | 5.* | copy-paste CI snippet works |
@@ -117,16 +117,16 @@ Week 6  └─ 6.1 README/GIF ─ 6.2 leaderboard ─ 6.3 essay ─ ▶ SHOW HN
 
 ## 6. Definition of Done (v0.1)
 
-- [ ] `pip install mcp-probe && mcp-probe run "python sample_server.py"` prints a graded A–F report + MCP Quality Score in the terminal.
+- [ ] `pip install mcp-quality && mcp-quality run "python sample_server.py"` prints a graded A–F report + MCP Quality Score in the terminal.
 - [ ] `--json` emits the versioned schema (ARCHITECTURE §7); `--fail-under B` sets exit code correctly.
 - [ ] Fast path (Contract+Cost+Performance) runs with **no LLM**, deterministically, in < 30 s on a 30-tool server (NFR-3).
 - [ ] Legibility produces a seeded, cached, reproducible selection-rate + disambiguation matrix; rerun is a cache hit.
-- [ ] `mcp-probe static ./server.mcp.json` runs offline; live-only checks report "not measured".
-- [ ] `mcp-probe snapshot` + `--no-regressions` detects a broken contract / dropped score.
-- [ ] `mcp-probe badge` emits a grade badge + shields JSON endpoint.
+- [ ] `mcp-quality static ./server.mcp.json` runs offline; live-only checks report "not measured".
+- [ ] `mcp-quality snapshot` + `--no-regressions` detects a broken contract / dropped score.
+- [ ] `mcp-quality badge` emits a grade badge + shields JSON endpoint.
 - [ ] `--deep-security` folds mcp-scan/Cisco findings when installed; degrades cleanly when not.
 - [ ] README: <90-second demo GIF above the fold, ≤10-line quickstart, GH Action snippet, sibling links.
-- [ ] Test suite green (see TEST-PLAN); CI runs mcp-probe on its own sample servers (dogfood).
+- [ ] Test suite green (see TEST-PLAN); CI runs mcp-quality on its own sample servers (dogfood).
 - [ ] `CITATION.cff` current; Apache-2.0; 3–5 seeded `good-first-issue`s.
 
 ---
@@ -138,17 +138,17 @@ Week 6  └─ 6.1 README/GIF ─ 6.2 leaderboard ─ 6.3 essay ─ ▶ SHOW HN
 - [ ] Draft essay "Your MCP server has a quality score, and it's probably a C" — lead with the leaderboard + one brutal token number (e.g. 55k tokens before hello).
 - [ ] Record the demo GIF: the **disambiguation matrix** and the **token-cost number** (the two things mcp-xray/Cisco show partially and nobody shows *in a CI gate*). Do **not** lead with security (crowded) or RPS (boring).
 - [ ] Positioning copy: "quality has point tools; this is the **suite you gate CI on**" — pre-empt the "isn't this mcp-xray?" comment by crediting mcp-xray and naming the four things it doesn't do (load, contract, snapshot, gate/badge).
-- [ ] GitHub Action + badge live on mcp-probe's own repo (dogfood the badge).
+- [ ] GitHub Action + badge live on mcp-quality's own repo (dogfood the badge).
 
 **Launch day**
-- [ ] "Show HN: mcp-probe — lighthouse for MCP servers (lint, benchmark, load-test in CI)."
+- [ ] "Show HN: mcp-quality — lighthouse for MCP servers (lint, benchmark, load-test in CI)."
 - [ ] Publish the leaderboard post + essay simultaneously; cross-link from awesome-agent-reliability.
 - [ ] Notify the 20 leaderboard server authors (respectfully — "you scored a B, here's why + a PR-able fix").
 - [ ] Seed sibling cross-links (stampede "coming: `--from-probe`", org README).
 
 **Post-launch (first 30 days → 500-star target)**
 - [ ] Respond to every HN thread, especially the mcp-xray/Cisco comparison (own it graciously).
-- [ ] Land the first external repo with mcp-probe in CI (the north-star metric) — offer PRs to willing leaderboard authors.
+- [ ] Land the first external repo with mcp-quality in CI (the north-star metric) — offer PRs to willing leaderboard authors.
 - [ ] Open the registry-scoring conversation with ≥1 registry (TrueFoundry/Apigene/official) for v0.2.
 - [ ] Track badges-in-the-wild; retweet each new one.
 
@@ -160,6 +160,6 @@ Week 6  └─ 6.1 README/GIF ─ 6.2 leaderboard ─ 6.3 essay ─ ▶ SHOW HN
 |---|---|---|
 | Legibility LLM flakiness/cost eats time | High | Pin local model + cache early (3.5 before polishing 3.3); fast path can launch without it. |
 | Spec transition churn (2026-07-28 RC moves) | Med | Version-aware connect isolates it to W1.3; grade both, require neither for launch. |
-| Shared primitives not ready from stampede | Med | Vendor minimal versions; mcp-probe proves the terminal renderer first. |
+| Shared primitives not ready from stampede | Med | Vendor minimal versions; mcp-quality proves the terminal renderer first. |
 | mcp-xml/Cisco ship a competing "suite/gate" before us | Med | Speed is the moat — ship the fast path by Week 3; the portfolio handoff (stampede) is uncopyable. |
 | `--deep-security` scanner APIs unstable | Low | Not launch-blocking; adapters degrade to "not measured". |

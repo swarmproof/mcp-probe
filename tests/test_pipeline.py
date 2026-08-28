@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.connect.client import FakeClient, InvokeResult
-from mcp_probe.connect.discover import surface_from_tools
-from mcp_probe.exit_codes import ExitCode
-from mcp_probe.pipeline import run_probe
+from mcp_quality.config import ProbeConfig
+from mcp_quality.connect.client import FakeClient, InvokeResult
+from mcp_quality.connect.discover import surface_from_tools
+from mcp_quality.exit_codes import ExitCode
+from mcp_quality.pipeline import run_probe
 
 
 def _surface(tools):
@@ -56,7 +56,7 @@ async def test_pass_when_grade_meets_floor():
 
 async def test_engine_error_degrades_to_not_measured(monkeypatch):
     # If an engine raises, the run must not abort — that family becomes not-measured.
-    from mcp_probe.engines.cost import CostEngine
+    from mcp_quality.engines.cost import CostEngine
 
     async def boom(self, ctx):
         raise RuntimeError("kaboom")

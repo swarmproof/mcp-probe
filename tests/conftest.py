@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.connect.client import ConnectRecord, FakeClient, InvokeResult
-from mcp_probe.connect.discover import surface_from_tools
-from mcp_probe.models import ProbeContext, ServerSurface
+from mcp_quality.config import ProbeConfig
+from mcp_quality.connect.client import ConnectRecord, FakeClient, InvokeResult
+from mcp_quality.connect.discover import surface_from_tools
+from mcp_quality.models import ProbeContext, ServerSurface
 
 
 def make_surface(tools: list[dict], **kw) -> ServerSurface:

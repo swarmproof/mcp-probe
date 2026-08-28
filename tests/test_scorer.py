@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_probe.models import FamilyScore
-from mcp_probe.scoring import Scorer, grade_for_score
+from mcp_quality.models import FamilyScore
+from mcp_quality.scoring import Scorer, grade_for_score
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-# Seeded good-first-issues for mcp-probe
+# Seeded good-first-issues for mcp-quality
 
 > Filed as real GitHub issues (label: `good-first-issue`) once the org repo exists.
 

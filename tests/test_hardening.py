@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_probe.cli import _config_from_args as cfg_from_args
-from mcp_probe.cli import _parse_family_gates, _parse_headers, build_parser
-from mcp_probe.config import ProbeConfig
-from mcp_probe.connect.discover import surface_from_tools
-from mcp_probe.exit_codes import ExitCode
-from mcp_probe.pipeline import run_probe
+from mcp_quality.cli import _config_from_args as cfg_from_args
+from mcp_quality.cli import _parse_family_gates, _parse_headers, build_parser
+from mcp_quality.config import ProbeConfig
+from mcp_quality.connect.discover import surface_from_tools
+from mcp_quality.exit_codes import ExitCode
+from mcp_quality.pipeline import run_probe
 
 # -- parsing ------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ async def test_fail_under_family_passes_when_met():
 
 @pytest.mark.deep_security
 def test_real_scanner_normalizes_output():
-    from mcp_probe.security.adapters import McpScanAdapter
+    from mcp_quality.security.adapters import McpScanAdapter
 
     adapter = McpScanAdapter()
     if not adapter.available():

@@ -1,4 +1,4 @@
-# mcp-probe demo
+# mcp-quality demo
 
 The two things no other tool shows in a CI gate: the **toolset token number** and the
 **disambiguation matrix**. Captured from real runs against the repo's fixture servers.
@@ -7,7 +7,7 @@ To record a GIF: `asciinema rec demo.cast -c "bash scripts/demo.sh" && agg demo.
 ## 1. The token tax — what every agent pays just to *see* your tools
 
 ```console
-$ mcp-probe run "python tests/servers/bloated_server.py" --fail-under B
+$ mcp-quality run "python tests/servers/bloated_server.py" --fail-under B
 ╭─────────────────────────────────╮
 │ MCP Quality Score  81   Grade B │
 ╰─────────────────────────────────╯
@@ -25,7 +25,7 @@ agent does anything. That number is invisible until something like this prints i
 ## 2. The disambiguation matrix — which tools do agents confuse?
 
 ```console
-$ mcp-probe run "python tests/servers/confusable_server.py" \
+$ mcp-quality run "python tests/servers/confusable_server.py" \
     --legibility --model ollama:mistral-small:latest --allow-writes
 ╭─────────────────────────────────╮
 │ MCP Quality Score  67   Grade D │
@@ -60,13 +60,13 @@ Disambiguation matrix  (row = correct tool · cell = % of times chosen)
 Two tools with the description *"Remove a record by id."* A real model (`mistral-small`
 via Ollama) picked **`delete_record` 100% of the time — even when `archive_record` was the
 right call.** That's a data-loss bug waiting to happen, caught before shipping — and
-mcp-probe even proposes the rewrite that fixes it.
+mcp-quality even proposes the rewrite that fixes it.
 
 ## 3. In CI
 
 ```yaml
-- run: pip install mcp-probe
-- run: mcp-probe run "python my_server.py" --fail-under B --no-regressions
+- run: pip install mcp-quality
+- run: mcp-quality run "python my_server.py" --fail-under B --no-regressions
 ```
 
 See the [leaderboard](./leaderboard.md) for these checks run against real public MCP servers.

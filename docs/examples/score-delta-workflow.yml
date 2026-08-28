@@ -21,19 +21,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install mcp-probe
+      - run: pip install mcp-quality
 
       - name: Score PR head
-        run: mcp-probe run "$MCP_TARGET" --json > head.json
+        run: mcp-quality run "$MCP_TARGET" --json > head.json
 
       - name: Score base
         run: |
           git checkout ${{ github.event.pull_request.base.sha }} -- . || git checkout ${{ github.event.pull_request.base.sha }}
-          mcp-probe run "$MCP_TARGET" --json > base.json
+          mcp-quality run "$MCP_TARGET" --json > base.json
           git checkout ${{ github.sha }} -- . 2>/dev/null || true
 
       - name: Build the delta comment
-        run: mcp-probe compare base.json head.json --markdown > delta.md
+        run: mcp-quality compare base.json head.json --markdown > delta.md
 
       - name: Post or update the sticky comment
         env:
@@ -42,7 +42,7 @@ jobs:
         run: |
           # find our previous comment by its hidden marker, edit it if present else create
           id=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" \
-                 --jq '.[] | select(.body | contains("<!-- mcp-probe-score-delta -->")) | .id' | head -1)
+                 --jq '.[] | select(.body | contains("<!-- mcp-quality-score-delta -->")) | .id' | head -1)
           if [ -n "$id" ]; then
             gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$id" -F body=@delta.md
           else

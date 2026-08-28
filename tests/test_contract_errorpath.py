@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.connect.client import ConnectRecord, FakeClient, InvokeResult
-from mcp_probe.contract.schema import synthesize_invalid_args, validate_against
-from mcp_probe.engines.contract import ContractEngine
+from mcp_quality.config import ProbeConfig
+from mcp_quality.connect.client import ConnectRecord, FakeClient, InvokeResult
+from mcp_quality.contract.schema import synthesize_invalid_args, validate_against
+from mcp_quality.engines.contract import ContractEngine
 
 from .conftest import make_ctx
 

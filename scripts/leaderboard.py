@@ -25,9 +25,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from mcp_probe import RUBRIC_VERSION, __version__  # noqa: E402
-from mcp_probe.config import ProbeConfig  # noqa: E402
-from mcp_probe.pipeline import run_probe  # noqa: E402
+from mcp_quality import RUBRIC_VERSION, __version__  # noqa: E402
+from mcp_quality.config import ProbeConfig  # noqa: E402
+from mcp_quality.pipeline import run_probe  # noqa: E402
 
 
 @dataclass
@@ -115,7 +115,7 @@ def render_markdown(rows: list[Row], model: str | None) -> str:
     lines = [
         "# MCP Quality Leaderboard",
         "",
-        f"> Scored with **mcp-probe {__version__}** (rubric `{RUBRIC_VERSION}`). "
+        f"> Scored with **mcp-quality {__version__}** (rubric `{RUBRIC_VERSION}`). "
         "Fast path (Contract + Cost) + Security-lite"
         + (", Legibility via local Ollama" if model else "")
         + ". Keyless, offline-deterministic. Servers requiring API keys are listed but not scored.",
@@ -148,7 +148,7 @@ def render_markdown(rows: list[Row], model: str | None) -> str:
         "- A **contract hard-gate** usually means the determinism probe (REQ-C5) called a "
         "tool twice with identical args and got different results. For a *stateful* tool "
         "(e.g. sequential-thinking accumulates state) that's by-design — the fix is to "
-        "declare the output volatile, not to change behaviour. mcp-probe flags undeclared "
+        "declare the output volatile, not to change behaviour. mcp-quality flags undeclared "
         "nondeterminism; whether it's a defect is the author's call.",
         "- **Toolset tokens** is the context tax every agent pays each turn just to see the "
         "tools — the single most actionable number here.",

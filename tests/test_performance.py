@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.connect.client import InvokeResult
-from mcp_probe.engines.performance import PerformanceEngine
-from mcp_probe.perf.load import classify_degradation, detect_leak, percentile
+from mcp_quality.config import ProbeConfig
+from mcp_quality.connect.client import InvokeResult
+from mcp_quality.engines.performance import PerformanceEngine
+from mcp_quality.perf.load import classify_degradation, detect_leak, percentile
 
 from .conftest import make_ctx
 
