@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.engines.cost import cost_score
-from mcp_probe.tokens import HeuristicCounter, serialize_toolset
+from mcp_quality.config import ProbeConfig
+from mcp_quality.engines.cost import cost_score
+from mcp_quality.tokens import HeuristicCounter, serialize_toolset
 
 from .conftest import make_ctx
 
@@ -32,7 +32,7 @@ async def test_leave_one_out_attribution_is_deterministic():
         {"name": "b", "description": "word " * 200, "inputSchema": {"type": "object"}},
     ]
     ctx = make_ctx(tools, config=ProbeConfig())
-    from mcp_probe.engines.cost import CostEngine
+    from mcp_quality.engines.cost import CostEngine
 
     fs1 = await CostEngine(counter=HeuristicCounter()).run(ctx)
     fs2 = await CostEngine(counter=HeuristicCounter()).run(ctx)
@@ -48,7 +48,7 @@ async def test_bloat_finding_emitted():
         for i in range(5)
     ]
     ctx = make_ctx(tools)
-    from mcp_probe.engines.cost import CostEngine
+    from mcp_quality.engines.cost import CostEngine
 
     fs = await CostEngine(counter=HeuristicCounter()).run(ctx)
     assert any(f.code == "$2-bloat" for f in fs.findings)
@@ -64,7 +64,7 @@ def test_heuristic_counter_deterministic():
 async def test_authoritative_token_count_opt_in(monkeypatch):
     # With token_model set and the Anthropic call "succeeding" (monkeypatched), the engine
     # uses the authoritative total, clears the estimate note, and rescales per-tool weights.
-    import mcp_probe.engines.cost as cost_mod
+    import mcp_quality.engines.cost as cost_mod
 
     monkeypatch.setattr(cost_mod, "anthropic_toolset_tokens", lambda tools, model: 9999)
     tools = [
@@ -83,7 +83,7 @@ async def test_authoritative_token_count_opt_in(monkeypatch):
 
 async def test_falls_back_to_estimate_when_authoritative_unavailable(monkeypatch):
     # token_model set but the call returns None (no key / failure) → offline estimate, labeled.
-    import mcp_probe.engines.cost as cost_mod
+    import mcp_quality.engines.cost as cost_mod
 
     monkeypatch.setattr(cost_mod, "anthropic_toolset_tokens", lambda tools, model: None)
     tools = [{"name": "a", "description": "x", "inputSchema": {"type": "object"}}]
@@ -99,7 +99,7 @@ async def test_remediation_hint_on_heavy_toolset():
         {"name": f"t{i}", "description": "word " * 200, "inputSchema": {"type": "object"}}
         for i in range(40)
     ]
-    from mcp_probe.engines.cost import CostEngine
+    from mcp_quality.engines.cost import CostEngine
 
     fs = await CostEngine(counter=HeuristicCounter()).run(make_ctx(tools))
     hint = next((f for f in fs.findings if f.code == "$6-remediation"), None)
@@ -110,7 +110,7 @@ async def test_remediation_hint_on_heavy_toolset():
 
 async def test_no_remediation_hint_on_lean_toolset():
     tools = [{"name": "get_x", "description": "Return x.", "inputSchema": {"type": "object"}}]
-    from mcp_probe.engines.cost import CostEngine
+    from mcp_quality.engines.cost import CostEngine
 
     fs = await CostEngine(counter=HeuristicCounter()).run(make_ctx(tools))
     assert not any(f.code == "$6-remediation" for f in fs.findings)
@@ -118,15 +118,15 @@ async def test_no_remediation_hint_on_lean_toolset():
 
 async def test_response_bloat_not_measured_by_default():
     tools = [{"name": "get_x", "description": "Return x.", "inputSchema": {"type": "object"}}]
-    from mcp_probe.engines.cost import CostEngine
+    from mcp_quality.engines.cost import CostEngine
 
     fs = await CostEngine(counter=HeuristicCounter()).run(make_ctx(tools))
     assert fs.metrics["response_tokens"] == "not measured"
 
 
 async def test_response_bloat_sampled_when_opted_in():
-    from mcp_probe.connect.client import FakeClient, InvokeResult
-    from mcp_probe.engines.cost import CostEngine
+    from mcp_quality.connect.client import FakeClient, InvokeResult
+    from mcp_quality.engines.cost import CostEngine
 
     tools = [
         {"name": "get_small", "description": "read", "inputSchema": {"type": "object"},

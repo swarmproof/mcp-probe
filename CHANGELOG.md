@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to mcp-probe are documented here. Format follows
+All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
 ## [0.1.0] — unreleased
@@ -28,7 +28,7 @@ five check families into a single **MCP Quality Score**, gates CI, and prints a 
 - Transports: **stdio**, **Streamable-HTTP**, and legacy **SSE**; version-aware
   `initialize` handshake (spec `2025-11-25`).
 - CLI: `run` · `static` (offline/air-gapped) · `snapshot` (+ `--no-regressions`) · `badge`.
-- Outputs: graded terminal report, HTML, versioned JSON (`mcp-probe/report@1`) with
+- Outputs: graded terminal report, HTML, versioned JSON (`mcp-quality/report@1`) with
   `--fail-under`, an SVG + shields.io badge, and the `stampede --from-probe` handoff seed.
 - Scoring: weighted mean (Cost 30 / Legibility 25 / Contract 20 / Performance 15 /
   Security 10), hard-gate cap at C, versioned rubric (`2026.07.1`).
@@ -39,9 +39,9 @@ five check families into a single **MCP Quality Score**, gates CI, and prints a 
   captured [demo](docs/demo.md).
 
 Also included (planned as the "v0.2" milestone, shipped in this first release):
-- **Legibility auto-fix** — `mcp-probe fix` applies the proposed description rewrites to
+- **Legibility auto-fix** — `mcp-quality fix` applies the proposed description rewrites to
   source (name-anchored find/replace), with `--apply` / `--pr` (REQ-L7).
-- **Historical tracking** — `mcp-probe run --record` + `mcp-probe compare` + a sticky PR
+- **Historical tracking** — `mcp-quality run --record` + `mcp-quality compare` + a sticky PR
   score-delta comment workflow.
 - **Cost** — response-bloat sampling (`--response-bloat`) and lazy-loading remediation
   hints (REQ-$5/$6).
@@ -50,7 +50,7 @@ Also included (planned as the "v0.2" milestone, shipped in this first release):
 - **Security** — Cisco `readiness` analyzer folded into Performance/Contract (REQ-S6).
 - **Transport/gating** — HTTP/SSE auth headers (`--header`), per-family gates
   (`--fail-under-family`).
-- **Registry scoring API** — `mcp-probe serve` (`POST /score` · `/verify` · `/healthz`),
+- **Registry scoring API** — `mcp-quality serve` (`POST /score` · `/verify` · `/healthz`),
   in the `[registry]` extra.
 
 ### Dependencies

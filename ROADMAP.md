@@ -1,4 +1,4 @@
-# mcp-probe — Roadmap
+# mcp-quality — Roadmap
 
 > **Status (2026-07-18):** v0.1 feature-complete. All five families, CLI
 > (`run`/`static`/`snapshot`/`badge`), JSON + `--fail-under` + `--no-regressions` gates,
@@ -13,7 +13,7 @@
 ## v0.1 (launch)
 - All five check families (Contract, Legibility, Cost, Performance, Security-lite)
 - Security-lite built-in + optional `--deep-security` integration (mcp-scan / Cisco)
-- CLI + CI + JSON + `mcp-probe: A` badge; snapshot regression
+- CLI + CI + JSON + `mcp-quality: A` badge; snapshot regression
 - Launch on HN + "your MCP server has a quality score" essay + a 20-server leaderboard
 
 ## v0.2

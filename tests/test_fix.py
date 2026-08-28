@@ -7,8 +7,8 @@ import json
 import shutil
 from pathlib import Path
 
-from mcp_probe.cli import main
-from mcp_probe.fix import Rewrite, apply_rewrites, collect_rewrites
+from mcp_quality.cli import main
+from mcp_quality.fix import Rewrite, apply_rewrites, collect_rewrites
 
 SERVERS = Path(__file__).parent / "servers"
 

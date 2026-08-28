@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.exit_codes import ExitCode
-from mcp_probe.pipeline import run_probe
+from mcp_quality.config import ProbeConfig
+from mcp_quality.exit_codes import ExitCode
+from mcp_quality.pipeline import run_probe
 
 pytestmark = pytest.mark.e2e
 

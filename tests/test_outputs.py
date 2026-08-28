@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import json
 
-from mcp_probe import REPORT_SCHEMA
-from mcp_probe.connect.discover import surface_from_tools
-from mcp_probe.models import FamilyScore, Report
-from mcp_probe.report import report_to_dict, report_to_json
-from mcp_probe.report.badge import badge_color, badge_svg, shields_endpoint
+from mcp_quality import REPORT_SCHEMA
+from mcp_quality.connect.discover import surface_from_tools
+from mcp_quality.models import FamilyScore, Report
+from mcp_quality.report import report_to_dict, report_to_json
+from mcp_quality.report.badge import badge_color, badge_svg, shields_endpoint
 
 
 def _report():
@@ -73,18 +73,18 @@ def test_badge_colours():
 def test_badge_svg_contains_grade_and_rubric():
     svg = badge_svg("A", rubric_version="2026.07.1")
     assert "<svg" in svg
-    assert "mcp-probe" in svg
+    assert "mcp-quality" in svg
     assert "2026.07.1" in svg
 
 
 def test_shields_endpoint_payload():
     ep = shields_endpoint("B")
-    assert ep == {"schemaVersion": 1, "label": "mcp-probe", "message": "B", "color": "green"}
+    assert ep == {"schemaVersion": 1, "label": "mcp-quality", "message": "B", "color": "green"}
     json.dumps(ep)  # must be serializable
 
 
 def test_confusion_matrix_renders():
-    from mcp_probe.report.render import render_confusion_matrix
+    from mcp_quality.report.render import render_confusion_matrix
 
     metrics = {
         "matrix": {"archive_record": {"delete_record": 3}, "delete_record": {}},
@@ -97,6 +97,6 @@ def test_confusion_matrix_renders():
 
 
 def test_confusion_matrix_empty_without_data():
-    from mcp_probe.report.render import render_confusion_matrix
+    from mcp_quality.report.render import render_confusion_matrix
 
     assert render_confusion_matrix({"selection_rate": None}) == ""

@@ -7,9 +7,9 @@ import json
 
 import pytest
 
-from mcp_probe.config import ProbeConfig
-from mcp_probe.models import FamilyScore, Finding, Severity
-from mcp_probe.security.adapters import CiscoReadinessAdapter
+from mcp_quality.config import ProbeConfig
+from mcp_quality.models import FamilyScore, Finding, Severity
+from mcp_quality.security.adapters import CiscoReadinessAdapter
 
 
 def _readiness_json() -> str:
@@ -48,10 +48,10 @@ class _FakeReadiness:
 
 
 async def test_pipeline_folds_readiness_into_families(monkeypatch):
-    from mcp_probe import pipeline
+    from mcp_quality import pipeline
 
     monkeypatch.setattr(
-        "mcp_probe.security.adapters.DEFAULT_READINESS_ADAPTERS", [_FakeReadiness()], raising=True
+        "mcp_quality.security.adapters.DEFAULT_READINESS_ADAPTERS", [_FakeReadiness()], raising=True
     )
     families = {
         "contract": FamilyScore("contract", 100, "A"),
@@ -64,10 +64,10 @@ async def test_pipeline_folds_readiness_into_families(monkeypatch):
 
 
 async def test_pipeline_skips_when_family_not_measured(monkeypatch):
-    from mcp_probe import pipeline
+    from mcp_quality import pipeline
 
     monkeypatch.setattr(
-        "mcp_probe.security.adapters.DEFAULT_READINESS_ADAPTERS", [_FakeReadiness()], raising=True
+        "mcp_quality.security.adapters.DEFAULT_READINESS_ADAPTERS", [_FakeReadiness()], raising=True
     )
     # performance not measured (static) → its readiness finding is dropped, not attached
     families = {

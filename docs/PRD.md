@@ -1,4 +1,4 @@
-# mcp-probe — PRD
+# mcp-quality — PRD
 
 > **The CI quality suite for MCP servers.** Lint, contract-test, benchmark, and load-test any MCP server before you ship it — the `pytest` + `lighthouse` for the servers agents depend on.
 >
@@ -8,9 +8,9 @@
 
 ## 1. Vision
 
-Every MCP server, on every commit, gets a letter grade and an **MCP Quality Score** — legible, cheap, correct, fast, and not obviously unsafe — enforced in CI and advertised with a badge, the way web apps get a Lighthouse score and repos get a coverage badge. mcp-probe is the runner and the gate; the badge is the distribution flywheel; `stampede --from-probe` is the upgrade path when a static grade isn't enough.
+Every MCP server, on every commit, gets a letter grade and an **MCP Quality Score** — legible, cheap, correct, fast, and not obviously unsafe — enforced in CI and advertised with a badge, the way web apps get a Lighthouse score and repos get a coverage badge. mcp-quality is the runner and the gate; the badge is the distribution flywheel; `stampede --from-probe` is the upgrade path when a static grade isn't enough.
 
-**One line:** *security scanners tell you if your server is dangerous; mcp-probe tells you if it's good — and blocks the merge when it gets worse.*
+**One line:** *security scanners tell you if your server is dangerous; mcp-quality tells you if it's good — and blocks the merge when it gets worse.*
 
 ---
 
@@ -21,7 +21,7 @@ Every MCP server, on every commit, gets a letter grade and an **MCP Quality Scor
 - G2. A graded (A–F) per-family + overall **MCP Quality Score**, rendered in the terminal and as HTML.
 - G3. Machine-readable JSON for CI, with a `--fail-under <grade>` gate.
 - G4. Snapshot/regression mode: diff tool schemas + descriptions against a committed baseline.
-- G5. A README badge (`mcp-probe: A`) as the distribution mechanism.
+- G5. A README badge (`mcp-quality: A`) as the distribution mechanism.
 - G6. `static` offline mode (scan a pre-generated tools/list JSON — no live server).
 - G7. A **zero-LLM fast path** (Contract + Cost + Performance) so the CI-critical path is cheap and deterministic.
 - G8. `--deep-security` integration adapter (mcp-scan / Cisco mcp-scanner) folding external findings into the unified report.
@@ -29,8 +29,8 @@ Every MCP server, on every commit, gets a letter grade and an **MCP Quality Scor
 ### 2.2 Non-goals
 - N1. **Not** a dedicated security scanner — integrate mcp-scan/Cisco for deep security; own only quality + light security.
 - N2. **Not** a runtime firewall / guardrail (that's MCPGuard / Invariant Guardrails).
-- N3. **Not** an agent evaluator (that's agentevals) — mcp-probe tests the *server*, not the *agent*.
-- N4. **Not** a dynamic behavioral simulator (that's stampede — mcp-probe hands off to it).
+- N3. **Not** an agent evaluator (that's agentevals) — mcp-quality tests the *server*, not the *agent*.
+- N4. **Not** a dynamic behavioral simulator (that's stampede — mcp-quality hands off to it).
 - N5. **Not** a hosted SaaS at v0.1 (the registry scoring API in v0.2 is the first hosted surface).
 - N6. **Not** a general JSON-RPC load tester — MCP-semantics only.
 
@@ -63,7 +63,7 @@ Convention: **[fast]** = zero-LLM deterministic path (CI-critical); **[llm]** = 
 | REQ-C4 | Invoke each tool with schema-valid synthesized args; assert the result conforms to the declared output shape (if declared). | [fast][net] | v0.1 |
 | REQ-C5 | **Determinism probe** — call the same tool twice with identical args; flag undeclared nondeterminism (diff beyond declared volatile fields). | [fast][net] | v0.1 |
 | REQ-C6 | Validate resources & prompts discovery (`resources/list`, `prompts/list`) shape conformance. | [fast][net] | v0.1 |
-| REQ-C7 | **Snapshot baseline** — hash+serialize tool descriptions + schemas to a committed `.mcp-probe/snapshot.json`. | [fast][static-ok] | v0.1 |
+| REQ-C7 | **Snapshot baseline** — hash+serialize tool descriptions + schemas to a committed `.mcp-quality/snapshot.json`. | [fast][static-ok] | v0.1 |
 | REQ-C8 | **Snapshot diff** — on rerun, diff against baseline; report added/removed/changed tools and *broken contracts* ("commit changed 3 descriptions, broke 1 contract"). | [fast][static-ok] | v0.1 |
 | REQ-C9 | Error-path conformance — send malformed / out-of-schema requests; assert spec-compliant JSON-RPC error objects (correct codes), not crashes. | [fast][net] | v0.2 |
 | REQ-C10 ⊕ | Forward-compat lint — flag SSE-only remotes and missing `server/discover` as transition risks. | [fast] | v0.2 |
@@ -127,7 +127,7 @@ Convention: **[fast]** = zero-LLM deterministic path (CI-critical); **[llm]** = 
 | NFR-2 | **Determinism** — identical inputs → identical fast-path output; LLM path reproducible under a fixed seed+model+goal-set. | byte-identical fast-path JSON |
 | NFR-3 | **CI runtime** — fast path on a 30-tool server. | < 30 s wall-clock (excl. load duration) |
 | NFR-4 | **LLM cost** — a full legibility run on a 30-tool server with the default small model. | < $0.10, cached to ~$0 on rerun |
-| NFR-5 | **CI ergonomics** — single binary/pip install; one command; non-zero exit on gate failure; GitHub Actions example in README. | `pip install mcp-probe` → `mcp-probe run` |
+| NFR-5 | **CI ergonomics** — single binary/pip install; one command; non-zero exit on gate failure; GitHub Actions example in README. | `pip install mcp-quality` → `mcp-quality run` |
 | NFR-6 | **Provider-agnostic** — any OpenAI-compatible endpoint + Anthropic SDK; Ollama-friendly; degrades to no-LLM. | ≥3 provider paths + Ollama |
 | NFR-7 | **Determinism of the score** — rubric versioned in JSON (`rubric_version`) and badge so historical scores stay comparable. | rubric_version present in every report |
 | NFR-8 | **Offline / air-gapped** — `static` mode needs no network. | full Contract+Cost+Security-lite offline |
@@ -194,8 +194,8 @@ Each family produces a 0–100 sub-score; the overall score is a weighted mean, 
 ## 8. Badge spec ⊕
 
 - Static SVG (shields.io-compatible endpoint + self-hosted fallback), color-keyed to grade (A green → F red).
-- Text: `mcp-probe: A` (grade) or `MCP Quality: 92` (score) — configurable.
-- Generated by `mcp-probe badge --out badge.svg` and/or a JSON endpoint `{ "schemaVersion": 1, "label": "mcp-probe", "message": "A", "color": "brightgreen" }` for shields.io dynamic badges.
+- Text: `mcp-quality: A` (grade) or `MCP Quality: 92` (score) — configurable.
+- Generated by `mcp-quality badge --out badge.svg` and/or a JSON endpoint `{ "schemaVersion": 1, "label": "mcp-quality", "message": "A", "color": "brightgreen" }` for shields.io dynamic badges.
 - Embeds `rubric_version` in a tooltip/title so a stale badge is detectable.
 - **Anti-gaming:** badge generation records the score's provenance hash; the registry API (v0.2) can re-verify.
 
@@ -205,9 +205,9 @@ Each family produces a 0–100 sub-score; the overall score is a weighted mean, 
 
 | Metric | Target |
 |---|---|
-| **North star** — repos with mcp-probe in their CI workflow | primary adoption-depth signal |
+| **North star** — repos with mcp-quality in their CI workflow | primary adoption-depth signal |
 | Launch — GitHub stars in 30 days | 500+ |
-| `mcp-probe: A` badges in the wild | steady climb; screenshot-worthy |
+| `mcp-quality: A` badges in the wild | steady climb; screenshot-worthy |
 | Registry adoption for automated scoring | ≥1 registry within 6 months |
 | Leaderboard reach — the "20 popular MCP servers scored" post | HN front page + inbound |
 | Legibility determinism | reproducible score across reruns (test-enforced) |

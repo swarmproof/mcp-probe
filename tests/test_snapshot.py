@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from mcp_probe import RUBRIC_VERSION
-from mcp_probe.connect.discover import surface_from_tools
-from mcp_probe.models import FamilyScore
-from mcp_probe.snapshot import build_snapshot, diff_against_baseline
+from mcp_quality import RUBRIC_VERSION
+from mcp_quality.connect.discover import surface_from_tools
+from mcp_quality.models import FamilyScore
+from mcp_quality.snapshot import build_snapshot, diff_against_baseline
 
 
 def _surface(desc="original"):

@@ -1,4 +1,4 @@
-# mcp-probe — ARCHITECTURE
+# mcp-quality — ARCHITECTURE
 
 > System design for the CI quality suite for MCP servers. Companion to `./PRD.md`.
 > Python 3.11+, official MCP SDK, asyncio. Sections marked **⊕ Beyond original spec** extend the v1.0 SPEC.
@@ -7,13 +7,13 @@
 
 ## 1. System overview
 
-mcp-probe is a **pipeline**: connect to a target → discover its surface → fan the discovered surface out to five independent **check-family engines** → merge their findings into a scored **Report** → render (terminal/HTML/JSON/badge) and gate. Two engines are LLM-free and deterministic (the CI-critical fast path); one is LLM-dependent (Legibility) and off the critical path; the rest sit in between.
+mcp-quality is a **pipeline**: connect to a target → discover its surface → fan the discovered surface out to five independent **check-family engines** → merge their findings into a scored **Report** → render (terminal/HTML/JSON/badge) and gate. Two engines are LLM-free and deterministic (the CI-critical fast path); one is LLM-dependent (Legibility) and off the critical path; the rest sit in between.
 
 ```
                                    ┌───────────────────────────────────────────┐
-   mcp-probe run "python srv.py"   │                 CLI / Config                │
-   mcp-probe static ./srv.json ───▶│  (argparse + .mcp-probe.toml + env)         │
-   mcp-probe badge / snapshot      └───────────────────────────────────────────┘
+   mcp-quality run "python srv.py"   │                 CLI / Config                │
+   mcp-quality static ./srv.json ───▶│  (argparse + .mcp-quality.toml + env)         │
+   mcp-quality badge / snapshot      └───────────────────────────────────────────┘
                                                      │  RunPlan
                                                      ▼
                         ┌──────────────────────────────────────────────┐
@@ -178,7 +178,7 @@ The negotiated `protocol_version` and which paths succeeded become **Contract fi
 - **Score:** budget-relative — a lean server (≤~2k toolset tokens) scores ~100; degrades toward single digits at GitHub-scale (~55k).
 
 ### 4.4 Performance engine `[net]` — reuses **concurrency-core**
-- Built on stampede's **concurrency-core** — mcp-probe imports its `Scheduler` / `Executor` **Protocol** (the binding contract) and is a *thin, adversarially-simple* consumer: instead of heterogeneous persona agents, it schedules **uniform MCP-client tasks** issuing real JSON-RPC calls over persistent connections, under a configurable concurrency curve.
+- Built on stampede's **concurrency-core** — mcp-quality imports its `Scheduler` / `Executor` **Protocol** (the binding contract) and is a *thin, adversarially-simple* consumer: instead of heterogeneous persona agents, it schedules **uniform MCP-client tasks** issuing real JSON-RPC calls over persistent connections, under a configurable concurrency curve.
 - **Concurrency curve** (REQ-P2): ramp → hold → spike, configurable; records p50/p95/p99 per tool and overall.
 - **Max stable concurrency** (REQ-P3): binary-search / step up until error-rate threshold breached.
 - **Degradation grade** (REQ-P4): classify behavior under load — *graceful* (slows), *clean-fail* (proper JSON-RPC errors), or *crash* (connection drops / non-conformant).
@@ -244,7 +244,7 @@ Legibility is the differentiator and the riskiest engine (LLM cost + flakiness).
 - Cache key = `(surface_hash, model_id, seed, goal_set_version)`. A rerun with an unchanged surface is a **cache hit → ~$0, instant, byte-identical** — which also satisfies the "reproducible legibility score" test (TEST-PLAN).
 - Because the key includes `surface_hash`, changing a tool description correctly invalidates only the affected cache entries.
 
-**Seeding & the goal set.** Ships with a default goal set derived from the toolset; authors can commit `.mcp-probe/goals.yaml` for domain-specific goals. Golden labels (which tool *should* win a goal) are author-declared or inferred-and-confirmed.
+**Seeding & the goal set.** Ships with a default goal set derived from the toolset; authors can commit `.mcp-quality/goals.yaml` for domain-specific goals. Golden labels (which tool *should* win a goal) are author-declared or inferred-and-confirmed.
 
 **Rewrite proposer (REQ-L5 → auto-fix PR REQ-L7 v0.2).** For each low-scoring/confused tool, the LLM proposes a rewritten description that (re)establishes distinctness; v0.2 opens a PR applying accepted rewrites. This operationalizes AEO for MCP.
 
@@ -252,10 +252,10 @@ Legibility is the differentiator and the riskiest engine (LLM cost + flakiness).
 
 ## 6. Snapshot / regression mechanism
 
-- **Baseline:** `mcp-probe snapshot` writes `.mcp-probe/snapshot.json` = `{surface_hash, per-tool {name, description_hash, schema_hash}, family_scores, rubric_version}` — committed to the repo (the pytest-snapshot pattern for MCP).
+- **Baseline:** `mcp-quality snapshot` writes `.mcp-quality/snapshot.json` = `{surface_hash, per-tool {name, description_hash, schema_hash}, family_scores, rubric_version}` — committed to the repo (the pytest-snapshot pattern for MCP).
 - **Diff:** every `run` loads the baseline (if present) and reports **added / removed / changed** tools and **score deltas** per family. Changed tool → shows *what* changed (description vs schema) and whether a **contract broke**.
 - **Gate:** `--no-regressions` ⊕ exits non-zero if any family score dropped or any contract broke vs baseline — independent of absolute grade. This is how "your last commit silently broke a tool" surfaces in the PR.
-- **Update:** `mcp-probe snapshot --update` (like `pytest --snapshot-update`) after an intentional change.
+- **Update:** `mcp-quality snapshot --update` (like `pytest --snapshot-update`) after an intentional change.
 
 ---
 
@@ -265,7 +265,7 @@ Legibility is the differentiator and the riskiest engine (LLM cost + flakiness).
 
 ```json
 {
-  "schema": "mcp-probe/report@1",
+  "schema": "mcp-quality/report@1",
   "rubric_version": "2026.07.1",
   "tool_version": "0.1.0",
   "target": { "transport": "stdio", "command": "python my_server.py",
@@ -321,9 +321,9 @@ SecurityLite.run()
 
 ## 9. `stampede --from-probe` handoff contract ⊕
 
-The flagship ecosystem link (RESEARCH §6). mcp-probe already did connect+discover; stampede's `MCPTarget` needs exactly that plus a `stampede.yaml`.
+The flagship ecosystem link (RESEARCH §6). mcp-quality already did connect+discover; stampede's `MCPTarget` needs exactly that plus a `stampede.yaml`.
 
-**Contract:** `mcp-probe run … --emit-stampede ./stampede.seed.json` writes a handoff document; `stampede --from-probe ./stampede.seed.json` consumes it and boots a full simulation of the same server.
+**Contract:** `mcp-quality run … --emit-stampede ./stampede.seed.json` writes a handoff document; `stampede --from-probe ./stampede.seed.json` consumes it and boots a full simulation of the same server.
 
 ```json
 {
@@ -331,7 +331,7 @@ The flagship ecosystem link (RESEARCH §6). mcp-probe already did connect+discov
   "target": { "type": "mcp", "transport": "stdio", "command": "python my_server.py",
               "protocol_version": "2026-07-28" },
   "surface": { "surface_hash": "sha256:…", "tools": [ /* discovered ToolDef[] */ ] },
-  "probe_report_ref": "./mcp-probe-report.json",
+  "probe_report_ref": "./mcp-quality-report.json",
   "hotspots": {
     "confusable_tool_pairs": [ ["archive_record","delete_record",0.34] ],
     "expensive_tools": ["search_all"],
@@ -346,7 +346,7 @@ The flagship ecosystem link (RESEARCH §6). mcp-probe already did connect+discov
 }
 ```
 
-- **Why it's clean:** both tools share the **OTel GenAI trace profile** (`gen_ai.*` + `swarmproof.*`), `persona-pack` (`swarmproof.dev/persona/v1`), and the `MCPTarget` shape (`discover()/invoke()/reset()`); the handoff's `trace_baseline` is an OTel-profile trace stampede can replay. mcp-probe fills stampede's discovery + a *prior* on where to look (confusable pairs become stampede's misuse-map focus; expensive tools become costbomb seeds).
+- **Why it's clean:** both tools share the **OTel GenAI trace profile** (`gen_ai.*` + `swarmproof.*`), `persona-pack` (`swarmproof.dev/persona/v1`), and the `MCPTarget` shape (`discover()/invoke()/reset()`); the handoff's `trace_baseline` is an OTel-profile trace stampede can replay. mcp-quality fills stampede's discovery + a *prior* on where to look (confusable pairs become stampede's misuse-map focus; expensive tools become costbomb seeds).
 - **Narrative:** "your server scored a B — now watch 200 agents actually use it." The static grade motivates the dynamic sim; the dynamic sim explains the static grade.
 
 ---
@@ -355,8 +355,8 @@ The flagship ecosystem link (RESEARCH §6). mcp-probe already did connect+discov
 
 | Primitive | Reuse | Coupling note |
 |---|---|---|
-| **concurrency-core** | Performance engine's load driver | Import stampede's `Scheduler` / `Executor` **Protocol** (the binding contract); mcp-probe supplies uniform-MCP-client tasks + a concurrency curve, not persona logic. Vendored; extract to `agent-reliability-core` at ~stampede v0.2. |
-| **report-renderer** | terminal + HTML report (oxblood) | Render via the shared **`RunReport`** model + report-renderer; mcp-probe registers a `QualityScoreReport` view over `RunReport`. Vendored. |
+| **concurrency-core** | Performance engine's load driver | Import stampede's `Scheduler` / `Executor` **Protocol** (the binding contract); mcp-quality supplies uniform-MCP-client tasks + a concurrency curve, not persona logic. Vendored; extract to `agent-reliability-core` at ~stampede v0.2. |
+| **report-renderer** | terminal + HTML report (oxblood) | Render via the shared **`RunReport`** model + report-renderer; mcp-quality registers a `QualityScoreReport` view over `RunReport`. Vendored. |
 | **trace-format** | Legibility + Performance emit; handoff baseline | **The OpenTelemetry GenAI semantic-conventions *profile*** (`gen_ai.*` spans/attributes + the `swarmproof.*` extension) — **not** a bespoke schema. Consume the profile, don't fork it — the handoff depends on cross-tool trace compatibility. |
 | **persona-pack** | minimal `naive` persona for Legibility probe | Consume one persona from persona-pack **`apiVersion: swarmproof.dev/persona/v1`**; full packs stay stampede's concern. |
 

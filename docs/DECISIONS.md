@@ -14,13 +14,13 @@ revisit with full context.
 (`OWASP/www-project-mcp-top-10`) as the primary `owasp_id`:
 tool-poisoning/hidden-instruction → **MCP03:2025**, secrets → **MCP01:2025**,
 command-execution capability → **MCP05:2025**. The mapping lives in one place
-(`src/mcp_probe/security/patterns.py::OWASP`); `LLMTop10` holds the OWASP-LLM-Apps IDs for
+(`src/mcp_quality/security/patterns.py::OWASP`); `LLMTop10` holds the OWASP-LLM-Apps IDs for
 optional dual-mapping.
 
 **Status: corrected.** An initial build mapped to the LLM Top 10 because the MCP Top 10
 hadn't been confirmed; research against `owasp.org/www-project-mcp-top-10` verified it
 exists (author Vandana Verma Sehgal, 2025 edition). **Caveat:** the project is in **Beta**,
-so the `MCPxx:2025` IDs may shift before GA — re-verify before mcp-probe's own 1.0.
+so the `MCPxx:2025` IDs may shift before GA — re-verify before mcp-quality's own 1.0.
 
 ## D2 — No `server/discover` stateless handshake probe (validated)
 
@@ -81,8 +81,8 @@ model is provided.
 ## D5 — Shared primitives are vendored-minimal, bound to stampede's contracts
 
 Per DELIVERY-PLAN §1.3 (vendor-first): `report-renderer` (terminal/HTML oxblood view),
-`trace-format` (OTel GenAI profile sink, `src/mcp_probe/trace.py`), and the
-concurrency-core *shape* (`src/mcp_probe/perf/load.py`) are implemented locally rather
+`trace-format` (OTel GenAI profile sink, `src/mcp_quality/trace.py`), and the
+concurrency-core *shape* (`src/mcp_quality/perf/load.py`) are implemented locally rather
 than imported from stampede. The **contracts** (RunReport view, `gen_ai.*`/`swarmproof.*`
 attributes, Scheduler-over-a-curve shape) match the documented primitives so extraction
 at ~stampede v0.2 is mechanical.

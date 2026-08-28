@@ -1,7 +1,7 @@
-# mcp-probe — TEST PLAN
+# mcp-quality — TEST PLAN
 
-> How we prove mcp-probe is correct, deterministic, and CI-safe. Companion to `./ARCHITECTURE.md` and `./PRD.md`.
-> The tool's whole value proposition is *trustworthy grading in CI* — so its own test suite must be exemplary, and it must **dogfood** (mcp-probe runs on its own sample servers in its own CI).
+> How we prove mcp-quality is correct, deterministic, and CI-safe. Companion to `./ARCHITECTURE.md` and `./PRD.md`.
+> The tool's whole value proposition is *trustworthy grading in CI* — so its own test suite must be exemplary, and it must **dogfood** (mcp-quality runs on its own sample servers in its own CI).
 
 ---
 
@@ -71,17 +71,17 @@ A separate, **opt-in, network-gated** suite (`-m live_llm`) runs the real pinned
 
 ### E2E-1 — Happy path: probe a clean server, get an A
 - **Given** `good_server` and no LLM key configured (fast path only)
-- **When** `mcp-probe run "python tests/servers/good_server.py" --json`
+- **When** `mcp-quality run "python tests/servers/good_server.py" --json`
 - **Then** exit code `0`; JSON `overall.grade == "A"`; all five families present; `contract.hard_gate == false`; `rubric_version` present; wall-clock < 30 s (NFR-3).
 
 ### E2E-2 — The gate fails a bad server
 - **Given** `bloated_server`
-- **When** `mcp-probe run "…bloated_server.py" --fail-under B`
+- **When** `mcp-quality run "…bloated_server.py" --fail-under B`
 - **Then** exit code `1`; report shows Cost grade ≤ D; a `$2-bloat` finding with a remediation string and a projected token saving.
 
 ### E2E-3 — Legibility disambiguation matrix (the headline)
 - **Given** `confusable_server` and the `StubModel` (fixed seed, goal-set v1)
-- **When** `mcp-probe run … --legibility`
+- **When** `mcp-quality run … --legibility`
 - **Then** JSON `legibility.metrics.top_confusion == ["archive_record","delete_record", r]` with `r ≥ 0.30`; a proposed-rewrite finding exists for at least one of the pair; Legibility grade ≤ C.
 
 ### E2E-4 — Legibility determinism / caching
@@ -90,33 +90,33 @@ A separate, **opt-in, network-gated** suite (`-m live_llm`) runs the real pinned
 - **Then** output JSON is byte-identical (modulo timing meta); `StubModel.call_count == 0` (served from cache); cache key includes the unchanged `surface_hash`.
 
 ### E2E-5 — Snapshot regression catches a silent break
-- **Given** `good_server` snapshotted (`mcp-probe snapshot`), then a tool edited so its result violates its schema (simulating a bad commit → `broken_contract_server`)
-- **When** `mcp-probe run … --no-regressions`
+- **Given** `good_server` snapshotted (`mcp-quality snapshot`), then a tool edited so its result violates its schema (simulating a bad commit → `broken_contract_server`)
+- **When** `mcp-quality run … --no-regressions`
 - **Then** exit code `1`; regression block lists the changed tool, `broken_contracts` non-empty, and a negative `score_delta` for Contract; message reads like "commit changed 1 tool and broke 1 contract."
 
 ### E2E-6 — Load-test correctness under real MCP semantics
 - **Given** `leaky_server` and `crash_server`
-- **When** `mcp-probe run … --performance --concurrency 100`
+- **When** `mcp-quality run … --performance --concurrency 100`
 - **Then** for `leaky_server`: a leak finding (rising connection baseline); for `crash_server`: `performance.metrics.degradation == "crash"` and `max_concurrency < 100`; p95 ≤ p99 (percentile-ordering invariant) in both.
 
 ### E2E-7 — Offline `static` mode
 - **Given** `dump.mcp.json` and no network
-- **When** `mcp-probe static ./tests/servers/dump.mcp.json --json`
+- **When** `mcp-quality static ./tests/servers/dump.mcp.json --json`
 - **Then** exit `0`; Contract(schema)+Cost+Security-lite scored; Performance and live-Legibility reported as `"not measured"` (never `0`) (ADR-006); overall score computed from measured families only.
 
 ### E2E-8 — `--deep-security` integration folds external findings
 - **Given** `injection_server` and a **fake `mcp-scan` on PATH** emitting a known JSON finding
-- **When** `mcp-probe run … --deep-security`
+- **When** `mcp-quality run … --deep-security`
 - **Then** the report contains both a `source: "builtin"` and a `source: "mcp-scan"` finding; duplicates on `(owasp_id, tool)` are merged; when the fake scanner is absent, security still scores and notes "deep security: not measured" (no failure).
 
 ### E2E-9 ⊕ — Badge emission
 - **Given** any completed run
-- **When** `mcp-probe badge --out badge.svg`
+- **When** `mcp-quality badge --out badge.svg`
 - **Then** an SVG grade badge is written and a shields-compatible JSON endpoint payload validates against the shields schema; `rubric_version` embedded.
 
 ### E2E-10 ⊕ — `stampede --from-probe` handoff contract
 - **Given** `confusable_server`
-- **When** `mcp-probe run … --emit-stampede ./seed.json`
+- **When** `mcp-quality run … --emit-stampede ./seed.json`
 - **Then** `seed.json` validates against `swarmproof/probe-handoff@1`; `hotspots.confusable_tool_pairs` contains the delete/archive pair; `target` + `surface` are populated; a downstream schema-conformance check (stand-in for stampede) accepts it.
 
 ---
@@ -167,15 +167,15 @@ Report-JSON validates against its own published JSON Schema; `surface_hash` stab
 
 ---
 
-## 9. CI gates (mcp-probe's own pipeline — dogfooding)
+## 9. CI gates (mcp-quality's own pipeline — dogfooding)
 
 The repo's GitHub Actions workflow must:
 1. Run unit + component + integration + E2E (with StubModel) on every PR — **all green required to merge**.
-2. **Dogfood:** run `mcp-probe run` against `good_server` and `bloated_server`; assert the former passes `--fail-under B` and the latter fails (proving the gate works on real invocation).
+2. **Dogfood:** run `mcp-quality run` against `good_server` and `bloated_server`; assert the former passes `--fail-under B` and the latter fails (proving the gate works on real invocation).
 3. Enforce coverage floor on the scoring + connect + diff logic (the correctness-critical core) — e.g. ≥90% on `scorer/`, `connect/`, `snapshot/`.
 4. Determinism guard: run the fast path twice, `diff` the JSON — must be identical.
-5. `mcp-probe static ./dump.mcp.json` must run in an offline job (no network egress) and succeed.
-6. Publish mcp-probe's own badge from its own score (the badge flywheel starts at home).
+5. `mcp-quality static ./dump.mcp.json` must run in an offline job (no network egress) and succeed.
+6. Publish mcp-quality's own badge from its own score (the badge flywheel starts at home).
 7. `live_llm`-marked tests run only on a nightly/opt-in job (not on PRs), to catch model drift without flaking the merge path.
 
 ---

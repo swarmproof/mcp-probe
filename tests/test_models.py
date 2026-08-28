@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from mcp_probe.connect.discover import surface_from_tools
-from mcp_probe.models import Finding, Severity
+from mcp_quality.connect.discover import surface_from_tools
+from mcp_quality.models import Finding, Severity
 
 
 def _tools(order: list[str]):
