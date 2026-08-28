@@ -32,10 +32,30 @@ five check families into a single **MCP Quality Score**, gates CI, and prints a 
   `--fail-under`, an SVG + shields.io badge, and the `stampede --from-probe` handoff seed.
 - Scoring: weighted mean (Cost 30 / Legibility 25 / Contract 20 / Performance 15 /
   Security 10), hard-gate cap at C, versioned rubric (`2026.07.1`).
-- 97 tests (unit + component + integration + E2E over stdio & HTTP/SSE), an opt-in
-  `live_llm` suite, and a dogfooding CI (test / dogfood / determinism / offline jobs).
+- 139 tests (unit + component + integration + E2E over stdio & HTTP/SSE), opt-in
+  `live_llm` / `deep_security` suites, and a dogfooding CI (test / dogfood / determinism /
+  offline jobs).
 - A reproducible [leaderboard](docs/leaderboard.md) of real public MCP servers and a
   captured [demo](docs/demo.md).
+
+Also included (planned as the "v0.2" milestone, shipped in this first release):
+- **Legibility auto-fix** — `mcp-probe fix` applies the proposed description rewrites to
+  source (name-anchored find/replace), with `--apply` / `--pr` (REQ-L7).
+- **Historical tracking** — `mcp-probe run --record` + `mcp-probe compare` + a sticky PR
+  score-delta comment workflow.
+- **Cost** — response-bloat sampling (`--response-bloat`) and lazy-loading remediation
+  hints (REQ-$5/$6).
+- **Contract** — error-path conformance (malformed input must not crash) + deprecated-SSE
+  forward-compat lint (REQ-C9/C10).
+- **Security** — Cisco `readiness` analyzer folded into Performance/Contract (REQ-S6).
+- **Transport/gating** — HTTP/SSE auth headers (`--header`), per-family gates
+  (`--fail-under-family`).
+- **Registry scoring API** — `mcp-probe serve` (`POST /score` · `/verify` · `/healthz`),
+  in the `[registry]` extra.
+
+### Dependencies
+- Pinned `mcp>=1.28,<2`: SDK v2 renamed `FastMCP`→`MCPServer` and changed result-field
+  casing. Migration to v2 is tracked separately.
 
 ### Notes
 - Deviations from the design spec are recorded in [docs/DECISIONS.md](docs/DECISIONS.md)
