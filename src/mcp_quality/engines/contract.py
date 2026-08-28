@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 
+from mcp_quality.contract.errors import grade_error_payload
 from mcp_quality.contract.schema import (
     synthesize_args,
     synthesize_invalid_args,
@@ -83,6 +84,7 @@ class ContractEngine(EngineBase):
         conformance_breaks = 0
         nondeterministic = 0
         error_path_crashes = 0
+        recovery_scores: list[int] = []  # per-tool error-recovery affordance (issue #25)
         skipped_writes: list[str] = []
 
         if ctx.client is not None:
@@ -96,9 +98,11 @@ class ContractEngine(EngineBase):
                 broke, nondet = await self._probe_tool(ctx, tool, findings)
                 conformance_breaks += int(broke)
                 nondeterministic += int(nondet)
-                # REQ-C9: error-path — bad input must be rejected cleanly, not crash.
-                if await self._probe_error_path(ctx, tool, findings):
-                    error_path_crashes += 1
+                # REQ-C9 + #25: bad input must not crash, and the error must be recoverable.
+                crashed, affordance = await self._probe_error_path(ctx, tool, findings)
+                error_path_crashes += int(crashed)
+                if affordance is not None:
+                    recovery_scores.append(affordance)
 
         # Scoring: fraction of tools passing schema + (where invoked) conformance/determinism.
         measured_live = ctx.client is not None
@@ -107,6 +111,12 @@ class ContractEngine(EngineBase):
             len(tools) - len(schema_invalid) - conformance_breaks - nondeterministic - error_path_crashes
         )
         score = clamp(100.0 * passing / total)
+
+        # #25: nudge the grade for poor error-recovery affordance (bounded, non-gating —
+        # vague errors are a quality problem, not a conformance break).
+        mean_affordance = round(sum(recovery_scores) / len(recovery_scores)) if recovery_scores else None
+        if mean_affordance is not None:
+            score = clamp(score - min(15.0, (100 - mean_affordance) * 0.15))
 
         hard_gate = (
             bool(schema_invalid)
@@ -127,6 +137,8 @@ class ContractEngine(EngineBase):
             summary_bits.append(f"{nondeterministic} nondeterministic")
         if error_path_crashes:
             summary_bits.append(f"{error_path_crashes} crash-on-bad-input")
+        if mean_affordance is not None and mean_affordance < 70:
+            summary_bits.append(f"error-recovery {mean_affordance}/100")
         if skipped_writes:
             summary_bits.append(f"{len(skipped_writes)} write tools skipped")
         summary = ", ".join(summary_bits) or f"{len(tools)} tools conform"
@@ -146,6 +158,7 @@ class ContractEngine(EngineBase):
                 "conformance_breaks": conformance_breaks,
                 "nondeterministic": nondeterministic,
                 "error_path_crashes": error_path_crashes,
+                "error_recovery_affordance": mean_affordance,
                 "skipped_writes": skipped_writes,
                 "invocation_measured": measured_live,
                 "protocol_version": ctx.surface.protocol_version,
@@ -216,15 +229,18 @@ class ContractEngine(EngineBase):
             pass  # a second-call failure is noise; the first call already scored the tool
         return broke, nondet
 
-    async def _probe_error_path(self, ctx: ProbeContext, tool: ToolDef, findings: list[Finding]) -> bool:
-        """REQ-C9: send schema-violating args; a conformant server rejects cleanly (any
-        InvokeResult — the façade normalizes a JSON-RPC error to is_error). A raised
-        exception means a transport crash / hang. Returns True on crash."""
+    async def _probe_error_path(
+        self, ctx: ProbeContext, tool: ToolDef, findings: list[Finding]
+    ) -> tuple[bool, int | None]:
+        """REQ-C9 + #25: send schema-violating args, then judge the response.
+
+        Returns ``(crashed, affordance)``. A raised exception = transport crash/hang
+        (crashed=True, affordance=None, C9 finding). Otherwise the error payload is graded
+        for how recoverable it is for an agent (#25) — 0..100 with C11 findings."""
         assert ctx.client is not None  # only called on the live path
         bad = synthesize_invalid_args(tool.input_schema, seed=getattr(ctx.config, "seed", 42))
         try:
-            await ctx.client.call_tool(tool.name, bad)
-            return False  # handled at the protocol level (clean error or tolerated) — pass
+            result = await ctx.client.call_tool(tool.name, bad)
         except Exception as exc:
             findings.append(
                 Finding(
@@ -236,7 +252,10 @@ class ContractEngine(EngineBase):
                     remediation="validate inputs and return a spec-compliant JSON-RPC error, not a crash",
                 )
             )
-            return True
+            return True, None
+        graded = grade_error_payload(tool.name, result)
+        findings.extend(graded.findings)
+        return False, graded.affordance
 
     # -- handshake / framing --------------------------------------------------
 

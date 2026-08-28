@@ -70,7 +70,7 @@ async def test_deterministic_tool_passes():
     ctx = make_ctx(tools, client=client)
     fs = await ContractEngine().run(ctx)
     assert not any(f.code == "C5-nondeterminism" for f in fs.findings)
-    assert fs.score == 100
+    assert fs.grade == "A"  # deterministic + conformant → A (exact score also reflects #25 error-recovery)
 
 
 # -- output conformance (REQ-C4) ----------------------------------------------
