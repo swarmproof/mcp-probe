@@ -57,8 +57,12 @@ async def test_e2e_error_path_clean_on_good_server():
     # REQ-C9: a conformant server handles malformed input without crashing.
     cfg = ProbeConfig(target=_target("good_server.py"), families=("contract",))
     outcome = await run_probe(cfg)
-    assert outcome.report.families["contract"].metrics["error_path_crashes"] == 0
-    assert not any(f.code == "C9-error-path" for f in outcome.report.families["contract"].findings)
+    contract = outcome.report.families["contract"]
+    assert contract.metrics["error_path_crashes"] == 0
+    assert not any(f.code == "C9-error-path" for f in contract.findings)
+    # #25: error-recovery affordance is measured live and in range.
+    aff = contract.metrics["error_recovery_affordance"]
+    assert aff is not None and 0 <= aff <= 100
 
 
 async def test_e2e_7_static_mode_not_measured():
