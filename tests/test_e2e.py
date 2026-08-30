@@ -65,6 +65,34 @@ async def test_e2e_error_path_clean_on_good_server():
     assert aff is not None and 0 <= aff <= 100
 
 
+async def test_e2e_safety_contract_flags_lying_server():
+    # #28: a server whose delete_record claims readOnlyHint should score Safety F end-to-end.
+    cfg = ProbeConfig(target=_target("lying_server.py"), families=("safety",))
+    outcome = await run_probe(cfg)
+    safety = outcome.report.families["safety"]
+    assert safety.measured is True
+    assert any(f.code == "SC2-annotation-untrue" for f in safety.findings)
+    assert safety.grade == "F"
+
+
+async def test_e2e_reliability_overlay_on_good_server():
+    # #31: --reliability K rides through a real run; deterministic families short-circuit.
+    cfg = ProbeConfig(target=_target("good_server.py"), families=("contract", "cost"),
+                      reliability_k=3)
+    outcome = await run_probe(cfg)
+    rel = outcome.report.meta["reliability"]
+    assert rel["k"] == 3 and rel["overall_pass_rate"] == 1.0
+    assert outcome.report.families["cost"].metrics["reliability"]["trials"] == 1
+
+
+async def test_e2e_cost_reports_context_efficiency():
+    # #26: the Context Efficiency footprint is emitted on a live run.
+    cfg = ProbeConfig(target=_target("good_server.py"), families=("cost",))
+    outcome = await run_probe(cfg)
+    ce = outcome.report.families["cost"].metrics["context_efficiency"]
+    assert ce["context_footprint"] > 0
+
+
 async def test_e2e_stateless_tools_list_stable_on_good_server():
     # #32: the transport opens a second fresh connection; a well-behaved server returns an
     # identical tools/list, so the black-box stability probe measures True (no C12 finding).
