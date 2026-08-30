@@ -83,7 +83,7 @@ a commit silently breaks a tool or drops a score. `mcp-quality badge` emits an
 
 | Family | What it measures | Path |
 |--------|------------------|------|
-| **Contract** | JSON-RPC/handshake conformance, schema validity, output conformance, determinism & error-path/recovery probes, snapshot & version-drift regression | zero-LLM |
+| **Contract** | JSON-RPC/handshake conformance, schema validity, output conformance, determinism & error-path/recovery probes, 2026-07-28 stateless-conformance, snapshot & version-drift regression | zero-LLM |
 | **Cost** | token weight of your whole toolset, per-tool bloat (leave-one-out), runtime response bloat, Context Efficiency, $-per-task | zero-LLM |
 | **Legibility** *(the differentiator)* | agent-comprehension score, the **disambiguation matrix**, selection accuracy + over-triggering, description lints — with proposed rewrites you can auto-PR | small model |
 | **Performance** | concurrent-agent load with *real MCP semantics* (not naive HTTP), p50/p95/p99, max concurrency, connection-leak detection | live |

@@ -22,6 +22,7 @@ from mcp_quality.contract.schema import (
     validate_against,
     validate_schema,
 )
+from mcp_quality.contract.stateless import grade_stateless_conformance
 from mcp_quality.engines.base import EngineBase, clamp
 from mcp_quality.models import FamilyScore, Finding, ProbeContext, Severity, ToolDef
 
@@ -50,6 +51,18 @@ class ContractEngine(EngineBase):
         tools = ctx.surface.tools
 
         self._check_handshake(ctx, findings)  # REQ-C1, C2, C10 (from the connect record)
+
+        # REQ-C10/C12 (#32): stateless (2026-07-28) conformance — version-aware, black-box.
+        # Works static too (reports what it can from the surface's negotiated version).
+        rec = getattr(ctx.client, "connect_record", None)
+        sl_findings, stateless_readiness = grade_stateless_conformance(
+            rec.protocol_version if rec else ctx.surface.protocol_version,
+            discover_ok=rec.stateless_discover_ok if rec else None,
+            tools_list_stable=rec.tools_list_stable if rec else None,
+            meta_enforced=rec.meta_enforced if rec else None,
+            supported_versions=rec.supported_versions if rec else None,
+        )
+        findings.extend(sl_findings)
 
         # REQ-C3: schema validity of every tool (static-ok).
         schema_invalid: set[str] = set()
@@ -118,6 +131,11 @@ class ContractEngine(EngineBase):
         if mean_affordance is not None:
             score = clamp(score - min(15.0, (100 - mean_affordance) * 0.15))
 
+        # #32: an unstable tools/list (per-connection surface) is a real defect — bounded,
+        # deterministic penalty. Non-adoption of the stateless path is only reported, not scored.
+        if stateless_readiness.get("tools_list_stable") is False:
+            score = clamp(score - 10.0)
+
         hard_gate = (
             bool(schema_invalid)
             or conformance_breaks > 0
@@ -162,6 +180,7 @@ class ContractEngine(EngineBase):
                 "skipped_writes": skipped_writes,
                 "invocation_measured": measured_live,
                 "protocol_version": ctx.surface.protocol_version,
+                "stateless_readiness": stateless_readiness,
                 "summary": summary,
             },
         )
@@ -277,7 +296,8 @@ class ContractEngine(EngineBase):
                     evidence={"errors": rec.framing_errors},
                 )
             )
-        # REQ-C10: forward-compat lint — flag transition risks.
+        # REQ-C10: transport forward-compat lint. The stateless (server/discover, _meta,
+        # tools/list-stability) checks are graded separately in grade_stateless_conformance.
         if rec.transport == "sse":
             findings.append(
                 Finding(
@@ -287,16 +307,5 @@ class ContractEngine(EngineBase):
                     message="server uses the deprecated HTTP+SSE transport",
                     remediation="migrate to Streamable HTTP (SSE was deprecated in the 2025-03-26 spec)",
                     evidence={"transport": "sse"},
-                )
-            )
-        elif rec.stateless_discover_ok is False and rec.legacy_handshake_ok:
-            findings.append(
-                Finding(
-                    family=self.name,
-                    code="C10-forward-compat",
-                    severity=Severity.LOW,
-                    message="server speaks only the legacy initialize handshake",
-                    remediation="adopt the stateless server/discover path when your SDK ships it",
-                    evidence={"protocol_version": rec.protocol_version},
                 )
             )
