@@ -3,6 +3,42 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [Unreleased] — v0.3 · behavioral conformance
+
+Doubling down on the checks only a runner can perform: comparing a server's real behavior
+to what its metadata claims. Adds a 6th scored family, an experimental family, and a
+reliability overlay. Rubric bumped to `2026.08.1`.
+
+### Added
+- **Safety-Contract** `[fast]` — a new 6th family (weight 0.10) grading whether tool
+  *annotations are true*: a write-named tool declaring `readOnlyHint`/`destructiveHint=false`
+  (`SC2`, bypasses host confirmation) hard-gates to C; missing annotations (`SC1`) and
+  writes with no idempotency signal (`SC3`) are flagged. Static, offline-ok. (#28)
+- **Contract — error-recovery affordance** — grades the *error payload an agent receives*
+  (structured / retryable / actionable / no leaked internals) with a bounded penalty; codes
+  `C11-*`. (#25)
+- **Contract — 2026-07-28 stateless-conformance** — version-aware `C12` checks:
+  `server/discover` presence, `_meta` enforcement, and `tools/list` stability across two
+  fresh connections (probed live in the transport); non-adoption is a gentle `C10` nudge,
+  a broken rule on the stateless revision is a real finding. (#32)
+- **Cost — Context Efficiency** — runtime response-size per tool + pagination hygiene
+  (`$7-no-pagination`), surfaced as a per-server context-footprint in the headline. (#26)
+- **Legibility — selection accuracy + over-triggering** — right-tool selection metric plus
+  an out-of-scope false-fire probe (`L6-over-triggering`); new description lints
+  `L3-ambiguous-param`, `L3-no-pagination`, `L3-leaked-identifier`. (#29, #30)
+- **Reliability overlay** — `--reliability K` reruns the nondeterministic families K times
+  and reports **pass^k** consistency, separate from accuracy; deterministic families
+  short-circuit to 1.0 with no reruns. (#31)
+- **Capability-stability gate** — snapshot diff now flags scope-expansion and breaking
+  schema changes across versions; `--no-regressions` fails the PR on capability drift. (#27)
+- **Spec-surface** `[net]` `⊕ experimental` — `--experimental`, zero rubric weight: a
+  reusable message-capture harness grades sampling safety (`SS1/SS2`), resource resolution
+  (`SS3`), and elicitation safety (`SS4/SS5`). Reported but never gates the grade. (#33)
+
+### Changed
+- The Scorer excludes zero-weight (experimental) families from the hard gate.
+- `RUBRIC_VERSION` → `2026.08.1`.
+
 ## [0.1.0] — unreleased
 
 First public release: the CI quality suite for MCP servers. Grades any MCP server across
