@@ -131,7 +131,8 @@ async def test_response_bloat_sampled_when_opted_in():
     tools = [
         {"name": "get_small", "description": "read", "inputSchema": {"type": "object"},
          "annotations": {"readOnlyHint": True}},
-        {"name": "get_big", "description": "read", "inputSchema": {"type": "object"},
+        {"name": "get_big", "description": "read",
+         "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer"}}},
          "annotations": {"readOnlyHint": True}},
     ]
     client = FakeClient(results={
@@ -142,4 +143,47 @@ async def test_response_bloat_sampled_when_opted_in():
     fs = await CostEngine(counter=HeuristicCounter()).run(ctx)
     rt = fs.metrics["response_tokens"]
     assert isinstance(rt, dict) and rt["get_big"] > rt["get_small"]
+    # get_big has a `limit` param → boundable → $5, not $7
     assert any(f.code == "$5-response-bloat" and f.tool == "get_big" for f in fs.findings)
+
+
+async def test_unbounded_big_response_flags_no_pagination():
+    # #26: a big response with NO pagination param is worse → $7-no-pagination.
+    from mcp_quality.connect.client import FakeClient, InvokeResult
+    from mcp_quality.engines.cost import CostEngine
+
+    tools = [{"name": "list_all", "description": "read", "inputSchema": {"type": "object"},
+              "annotations": {"readOnlyHint": True}}]
+    client = FakeClient(results={
+        "list_all": InvokeResult("list_all", False, content=[], structured={"rows": ["word " * 400] * 6}),
+    })
+    ctx = make_ctx(tools, client=client, config=ProbeConfig(response_bloat=True))
+    fs = await CostEngine(counter=HeuristicCounter()).run(ctx)
+    f = next((x for x in fs.findings if x.code == "$7-no-pagination"), None)
+    assert f is not None and f.tool == "list_all"
+    assert f.evidence["boundable"] is False
+    assert "projected saving" in f.remediation
+
+
+async def test_context_efficiency_metric_static():
+    from mcp_quality.engines.cost import CostEngine
+
+    tools = [{"name": "get_x", "description": "Return x.", "inputSchema": {"type": "object"}}]
+    fs = await CostEngine(counter=HeuristicCounter()).run(make_ctx(tools))
+    ce = fs.metrics["context_efficiency"]
+    assert ce["response_tokens"] == "not measured"
+    assert ce["context_footprint"] == ce["schema_tokens"] == fs.metrics["toolset_tokens"]
+
+
+async def test_context_efficiency_includes_response_when_sampled():
+    from mcp_quality.connect.client import FakeClient, InvokeResult
+    from mcp_quality.engines.cost import CostEngine
+
+    tools = [{"name": "get_x", "description": "read", "inputSchema": {"type": "object"},
+              "annotations": {"readOnlyHint": True}}]
+    client = FakeClient(results={"get_x": InvokeResult("get_x", False, content=[], structured={"v": "word " * 50})})
+    ctx = make_ctx(tools, client=client, config=ProbeConfig(response_bloat=True))
+    fs = await CostEngine(counter=HeuristicCounter()).run(ctx)
+    ce = fs.metrics["context_efficiency"]
+    assert isinstance(ce["response_tokens"], dict)
+    assert ce["context_footprint"] == ce["schema_tokens"] + ce["response_tokens"]["mean"]
