@@ -29,11 +29,48 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-def _tool_fingerprint(tool: ToolDef) -> dict[str, str]:
+def _tool_fingerprint(tool: ToolDef) -> dict[str, Any]:
+    """Per-tool fingerprint for drift detection (#27): content hashes + a capability
+    surface (declared safety + params) so we can catch silent scope/breaking changes."""
+    schema = tool.input_schema or {}
+    props = schema.get("properties") or {}
     return {
         "description_hash": _hash(tool.description or ""),
-        "schema_hash": _hash(json.dumps(tool.input_schema, sort_keys=True)),
+        "schema_hash": _hash(json.dumps(schema, sort_keys=True)),
+        "read_only": bool(tool.is_read_only),
+        "destructive": bool(tool.is_destructive),
+        "required": sorted(schema.get("required", []) or []),
+        "params": {k: (v.get("type") if isinstance(v, dict) else None) for k, v in props.items()},
     }
+
+
+def _capability_changes(name: str, old: dict[str, Any], new: dict[str, Any]) -> list[dict[str, str]]:
+    """Typed drift between two fingerprints of the same tool. Only flags changes that
+    widen scope or break existing callers; silent on additive/cosmetic changes."""
+    out: list[dict[str, str]] = []
+    # scope expansion — was declared safe, now isn't (the rug-pull tell). Only when the
+    # baseline recorded the flag (old-format snapshots omit it → skip, no false positive).
+    if "read_only" in old and old.get("read_only") and not new.get("read_only"):
+        out.append({"tool": name, "kind": "scope-expansion", "detail": "was read-only, now is not"})
+    if "destructive" in old and not old.get("destructive") and new.get("destructive"):
+        out.append({"tool": name, "kind": "scope-expansion", "detail": "now declares destructive"})
+    # breaking schema — new required fields / removed params / changed types break callers.
+    if "required" in old:
+        new_required = sorted(set(new.get("required", [])) - set(old.get("required", [])))
+        if new_required:
+            out.append({"tool": name, "kind": "breaking-schema",
+                        "detail": f"new required param(s): {', '.join(new_required)}"})
+    if "params" in old:
+        old_p, new_p = old.get("params", {}), new.get("params", {})
+        removed = sorted(set(old_p) - set(new_p))
+        if removed:
+            out.append({"tool": name, "kind": "breaking-schema",
+                        "detail": f"removed param(s): {', '.join(removed)}"})
+        for p in sorted(set(old_p) & set(new_p)):
+            if old_p[p] != new_p[p]:
+                out.append({"tool": name, "kind": "breaking-schema",
+                            "detail": f"param '{p}' type {old_p[p]} → {new_p[p]}"})
+    return out
 
 
 def build_snapshot(surface: ServerSurface, families: dict[str, FamilyScore]) -> dict[str, Any]:
@@ -67,14 +104,22 @@ class SnapshotDiff:
     added_tools: list[str] = field(default_factory=list)
     removed_tools: list[str] = field(default_factory=list)
     changed_tools: list[str] = field(default_factory=list)  # description or schema changed
+    capability_changes: list[dict[str, str]] = field(default_factory=list)  # typed drift (#27)
     broken_contracts: list[str] = field(default_factory=list)
     score_delta: dict[str, float] = field(default_factory=dict)  # per family (negative = worse)
     rubric_mismatch: bool = False
 
     @property
     def has_regression(self) -> bool:
-        """A regression = any negative score delta or any newly broken contract."""
-        return bool(self.broken_contracts) or any(d < 0 for d in self.score_delta.values())
+        """A regression = a newly broken contract, a negative score delta, a removed tool,
+        or a capability change (scope expansion / breaking schema) — the drift that
+        silently defeats a prior approval (#27)."""
+        return (
+            bool(self.broken_contracts)
+            or bool(self.removed_tools)
+            or bool(self.capability_changes)
+            or any(d < 0 for d in self.score_delta.values())
+        )
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -87,6 +132,8 @@ class SnapshotDiff:
             out["added_tools"] = self.added_tools
         if self.removed_tools:
             out["removed_tools"] = self.removed_tools
+        if self.capability_changes:
+            out["capability_changes"] = self.capability_changes
         if self.rubric_mismatch:
             out["rubric_mismatch"] = True
         return out
@@ -109,8 +156,14 @@ def diff_against_baseline(
     diff.added_tools = sorted(set(new_tools) - set(old_tools))
     diff.removed_tools = sorted(set(old_tools) - set(new_tools))
     for name in sorted(set(old_tools) & set(new_tools)):
-        if old_tools[name] != new_tools[name]:
+        old_fp, new_fp = old_tools[name], new_tools[name]
+        # changed = semantic content (desc/schema) differs — stable across fingerprint-format
+        # upgrades, which add keys but don't change these two hashes.
+        if (old_fp.get("description_hash"), old_fp.get("schema_hash")) != (
+            new_fp["description_hash"], new_fp["schema_hash"]
+        ):
             diff.changed_tools.append(name)
+        diff.capability_changes.extend(_capability_changes(name, old_fp, new_fp))
 
     # Score deltas per family — only when rubric matches (else scores aren't comparable).
     if not diff.rubric_mismatch:
