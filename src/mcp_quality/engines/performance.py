@@ -41,6 +41,7 @@ class PerformanceEngine(EngineBase):
     name = "performance"
     requires_live = True
     requires_llm = False
+    deterministic = False  # live load timing varies run-to-run → reliability overlay reruns it
 
     def __init__(self, factory: Callable[[], Awaitable[Any]] | None = None) -> None:
         self._factory = factory

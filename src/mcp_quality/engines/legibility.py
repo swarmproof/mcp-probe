@@ -67,6 +67,7 @@ class LegibilityEngine(EngineBase):
     name = "legibility"
     requires_live = False
     requires_llm = True
+    deterministic = False  # model sampling varies across seeds → reliability overlay reruns it
 
     def __init__(self, model: ModelProvider | None = None) -> None:
         self._model = model

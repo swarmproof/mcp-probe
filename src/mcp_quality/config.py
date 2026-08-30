@@ -44,6 +44,11 @@ class ProbeConfig:
     fail_under_family: dict[str, str] = field(default_factory=dict)  # per-family gates
     no_regressions: bool = False  # any family dropped vs snapshot → exit 1
 
+    # --- reliability overlay (#31) ---
+    # Run the nondeterministic families K times and report pass^k (consistency, not peak
+    # accuracy). K=1 → no reruns; deterministic families short-circuit to reliability 1.0.
+    reliability_k: int = 1
+
     # --- legibility ([llm]) ---
     model: str | None = None  # e.g. "ollama:qwen2.5-3b", "anthropic:claude-haiku-4-5"
     seed: int = 42

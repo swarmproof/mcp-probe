@@ -112,6 +112,8 @@ def _add_family_flags(sp: argparse.ArgumentParser) -> None:
     )
     sp.add_argument("--seed", type=int, default=None)
     sp.add_argument("--concurrency", type=int, default=None)
+    sp.add_argument("--reliability", dest="reliability_k", type=int, default=None, metavar="K",
+                    help="rerun nondeterministic families K times, report pass^k consistency")
     sp.add_argument("--response-bloat", action="store_true",
                     help="sample read-only tool outputs to measure response token weight (REQ-$5)")
 
@@ -151,6 +153,7 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
         "response_bloat": _true_or_none(getattr(args, "response_bloat", False)),
         "seed": getattr(args, "seed", None),
         "concurrency": getattr(args, "concurrency", None),
+        "reliability_k": getattr(args, "reliability_k", None),
         "families": _families_from_args(args) if hasattr(args, "all_families") else None,
     }
     if args.command == "run":
