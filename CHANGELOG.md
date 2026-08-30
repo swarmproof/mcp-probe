@@ -3,7 +3,7 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
-## [Unreleased] — v0.3 · behavioral conformance
+## [0.3.0] — 2026-08-30 · behavioral conformance
 
 Doubling down on the checks only a runner can perform: comparing a server's real behavior
 to what its metadata claims. Adds a 6th scored family, an experimental family, and a
@@ -39,7 +39,7 @@ reliability overlay. Rubric bumped to `2026.08.1`.
 - The Scorer excludes zero-weight (experimental) families from the hard gate.
 - `RUBRIC_VERSION` → `2026.08.1`.
 
-## [0.1.0] — unreleased
+## [0.1.0] — 2026-08-28
 
 First public release: the CI quality suite for MCP servers. Grades any MCP server across
 five check families into a single **MCP Quality Score**, gates CI, and prints a badge.
@@ -98,4 +98,5 @@ Also included (planned as the "v0.2" milestone, shipped in this first release):
   (OWASP MCP Top 10 mapping; why the `2026-07-28` stateless `server/discover` path is not
   yet implemented; the offline-token estimate).
 
+[0.3.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.3.0
 [0.1.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.1.0
