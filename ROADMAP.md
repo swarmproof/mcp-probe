@@ -3,10 +3,10 @@
 The CI quality suite for MCP servers. This document tracks **what's shipped**, **where we
 are**, and **what's next**.
 
-The through-line for what comes next: mcp-quality *executes* a server and checks what it
-**actually does** against what its metadata **claims** — error handling, runtime cost,
-annotation honesty, version stability, tool selection, spec conformance. That behavioral
-lane is the focus of v0.3.
+The through-line: mcp-quality *executes* a server and checks what it **actually does**
+against what its metadata **claims** — error handling, runtime cost, annotation honesty,
+version stability, tool selection, spec conformance. That behavioral lane — **v0.3** — is
+now complete on `main`; v0.4 pushes it into multi-model and scale.
 
 ---
 
@@ -46,51 +46,61 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ## 📍 Where we are now
 
-- **Live on PyPI** (`mcp-quality 0.1.0`), published via trusted publishing.
-- **Green CI** across Python 3.11/3.12 — 139 tests (unit · component · integration · E2E
+- **Live on PyPI** (`mcp-quality 0.1.0`), published via trusted publishing. The v0.3
+  behavioral-conformance work is merged on `main`, awaiting a `0.3.0` cut.
+- **Six scored families** (Contract · Cost · Legibility · Performance · Security-lite ·
+  Safety-Contract) plus an **experimental** spec-surface family, all behind one rubric.
+- **Green CI** across Python 3.11/3.12 — 219 tests (unit · component · integration · E2E
   over stdio + HTTP/SSE), plus opt-in `live_llm` and `deep_security` suites.
 - **Validated end-to-end against real servers** — a public [leaderboard](./docs/leaderboard.md)
   of reference MCP servers, and a live authenticated production run.
 
 ---
 
-## 🔜 Next — v0.3: behavioral conformance
+## ✅ Shipped — v0.3: behavioral conformance (on `main`)
 
-Doubling down on the checks only a runner can perform: comparing a server's real behavior
-to its declared contract. ([milestone](https://github.com/swarmproof/mcp-probe/milestone/2))
+The checks only a runner can perform: comparing a server's real behavior to its declared
+contract. All merged. ([milestone](https://github.com/swarmproof/mcp-probe/milestone/2))
 
 **Deeper behavioral checks**
-- **Error-recovery affordance** — grade the *error payload an agent receives* (structured?
+- **Error-recovery affordance** — grades the *error payload an agent receives* (structured?
   retryable? actionable? no leaked internals?), not just whether the server crashed. [#25]
-- **Context Efficiency** — measure *runtime* response size per tool + pagination hygiene,
-  and surface a comparable per-server context-footprint number. [#26]
-- **Safety-Contract** (new family) — verify tool annotations are *true*: a `readOnlyHint`
-  tool that mutates, or an `idempotentHint` tool that differs on repeat, is flagged. [#28]
-- **Selection accuracy + over-triggering gate** — deterministic (AST-matched) right-tool
-  selection, plus a false-fire gate for prompts no tool should handle. [#29]
-- **Description-quality lint rubric** — namespacing, unambiguous params, no leaked
-  low-level identifiers, pagination defaults (offline, no model). [#30]
+- **Context Efficiency** — *runtime* response size per tool + pagination hygiene, surfaced
+  as a comparable per-server context-footprint number in the Cost headline. [#26]
+- **Safety-Contract** (new 6th family) — verifies tool annotations are *true*: a write-named
+  tool declaring `readOnlyHint` (bypasses host confirmation) hard-gates the grade. [#28]
+- **Selection accuracy + over-triggering gate** — right-tool selection plus a false-fire
+  probe for out-of-scope prompts no tool should handle. [#29]
+- **Description-quality lints** — ambiguous params, no pagination, leaked low-level
+  identifiers (offline, no model). [#30]
 
 **Trust over time**
-- **Capability-stability / breaking-change gate** — diff the tool surface *and behavior*
-  across versions; fail the PR on silent scope expansion or a breaking schema change. [#27]
-- **`pass^k` reliability overlay** — report consistency across K runs, not just pass@1;
-  a reliability score distinct from peak accuracy. [#31]
+- **Capability-stability / breaking-change gate** — diffs the tool surface across versions;
+  `--no-regressions` fails the PR on silent scope expansion or a breaking schema change. [#27]
+- **`pass^k` reliability overlay** — `--reliability K` reports consistency across K runs
+  (deterministic families short-circuit), distinct from peak accuracy. [#31]
 
 **Spec conformance**
-- **2026-07-28 stateless-conformance** — `server/discover` present, `tools/list` stable
-  across connections, required `_meta` enforced, stateful-handle hygiene. [#32]
+- **2026-07-28 stateless-conformance** — version-aware `C12` checks: `server/discover`,
+  `tools/list` stability across two fresh connections, `_meta` enforcement. [#32]
+
+**Experimental**
+- **Spec-surface** (`--experimental`, zero rubric weight) — a reusable message-capture
+  harness grades sampling safety, resource resolution, and elicitation safety. [#33]
 
 ---
 
-## 🔭 Later — exploratory (v0.4+)
+## 🔜 Next — v0.4
 
-Evals for MCP surfaces beyond tools, gated on a reusable message-capture harness: sampling
-prompt-safety / exfiltration risk, elicitation UX & secret-handling, resource-link
-resolution, authorization least-privilege, and long-running Tasks lifecycle. [#33]
-
-Also on the horizon: multi-model consensus legibility, distributed load, and marketplace /
-registry partnerships built on the scoring API.
+- **Authorization least-privilege** — declared OAuth scopes minimal for the tool set;
+  issuer / resource-indicator hygiene. *(deferred candidate from #33)*
+- **Tasks lifecycle** — long-running ops reach terminal states, honor cancellation, don't
+  orphan. *(deferred candidate from #33)*
+- **Multi-model consensus legibility** — corroborate the comprehension probe across models
+  to cut single-model bias; report agreement as a confidence signal.
+- **Distributed load** — scale the Performance driver beyond one host for realistic
+  concurrency ceilings.
+- **Marketplace / registry partnerships** — built on the `mcp-quality serve` scoring API.
 
 ---
 
