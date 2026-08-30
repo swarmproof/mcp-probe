@@ -12,6 +12,7 @@ execution — that is what makes it cheap and reliable on small models.
 
 from __future__ import annotations
 
+import re
 from typing import Protocol, runtime_checkable
 
 
@@ -22,8 +23,10 @@ class ModelProvider(Protocol):
     call_count: int
     is_canonical: bool
 
-    def choose_tool(self, goal: str, tools: list[tuple[str, str]]) -> str:
-        """Given a goal and (name, description) pairs, return the chosen tool name."""
+    def choose_tool(self, goal: str, tools: list[tuple[str, str]], *, allow_none: bool = False) -> str:
+        """Given a goal and (name, description) pairs, return the chosen tool name.
+        When ``allow_none``, the model may decline — return "" if no tool fits (used to
+        measure over-triggering on out-of-scope prompts)."""
         ...
 
     def propose_rewrite(self, name: str, description: str, confusers: list[str]) -> str:
@@ -46,14 +49,16 @@ class StubModel:
         self.seed = seed
         self.call_count = 0
 
-    def choose_tool(self, goal: str, tools: list[tuple[str, str]]) -> str:
+    def choose_tool(self, goal: str, tools: list[tuple[str, str]], *, allow_none: bool = False) -> str:
         self.call_count += 1
         pick = self._choices.get(goal)
         if callable(pick):
             return pick(goal, tools)
         if isinstance(pick, str):
             return pick
-        return tools[0][0] if tools else ""
+        # Unscripted: decline when allowed (a well-behaved model wouldn't fire), else
+        # fall back to the first tool (forced-choice selection probe).
+        return "" if allow_none else (tools[0][0] if tools else "")
 
     def propose_rewrite(self, name: str, description: str, confusers: list[str]) -> str:
         self.call_count += 1
@@ -85,6 +90,16 @@ _CHOOSE_PROMPT = (
     "Goal: {goal}\n\nTools:\n{tools}\n\n"
     "Reply with ONLY the exact name of the single best tool."
 )
+_CHOOSE_PROMPT_NONE = (
+    "You are an agent deciding which tool, if any, accomplishes a goal.\n"
+    "Goal: {goal}\n\nTools:\n{tools}\n\n"
+    "Reply with ONLY the exact name of the single best tool, or exactly NONE if no tool fits."
+)
+
+
+def _prompt_for(goal: str, listing: str, allow_none: bool) -> str:
+    tpl = _CHOOSE_PROMPT_NONE if allow_none else _CHOOSE_PROMPT
+    return tpl.format(goal=goal, tools=listing)
 
 
 class _OpenAICompatModel:
@@ -110,16 +125,16 @@ class _OpenAICompatModel:
             return OpenAI(base_url=self._base_url, api_key=os.environ.get("OPENAI_API_KEY", "local"))
         return OpenAI()
 
-    def choose_tool(self, goal: str, tools: list[tuple[str, str]]) -> str:
+    def choose_tool(self, goal: str, tools: list[tuple[str, str]], *, allow_none: bool = False) -> str:
         self.call_count += 1
         listing = "\n".join(f"- {n}: {d}" for n, d in tools)
         resp = self._client().chat.completions.create(
             model=self.model_id,
             temperature=0,
             seed=self.seed,
-            messages=[{"role": "user", "content": _CHOOSE_PROMPT.format(goal=goal, tools=listing)}],
+            messages=[{"role": "user", "content": _prompt_for(goal, listing, allow_none)}],
         )
-        return _match_name((resp.choices[0].message.content or "").strip(), tools)
+        return _match_name((resp.choices[0].message.content or "").strip(), tools, allow_none=allow_none)
 
     def propose_rewrite(self, name: str, description: str, confusers: list[str]) -> str:
         self.call_count += 1
@@ -146,15 +161,15 @@ class _AnthropicModel:
 
         return Anthropic()
 
-    def choose_tool(self, goal: str, tools: list[tuple[str, str]]) -> str:
+    def choose_tool(self, goal: str, tools: list[tuple[str, str]], *, allow_none: bool = False) -> str:
         self.call_count += 1
         listing = "\n".join(f"- {n}: {d}" for n, d in tools)
         msg = self._client().messages.create(
             model=self.model_id, max_tokens=32, temperature=0,
-            messages=[{"role": "user", "content": _CHOOSE_PROMPT.format(goal=goal, tools=listing)}],
+            messages=[{"role": "user", "content": _prompt_for(goal, listing, allow_none)}],
         )
         text = "".join(getattr(b, "text", "") for b in msg.content).strip()
-        return _match_name(text, tools)
+        return _match_name(text, tools, allow_none=allow_none)
 
     def propose_rewrite(self, name: str, description: str, confusers: list[str]) -> str:
         self.call_count += 1
@@ -167,12 +182,17 @@ class _AnthropicModel:
         return "".join(getattr(b, "text", "") for b in msg.content).strip()
 
 
-def _match_name(reply: str, tools: list[tuple[str, str]]) -> str:
-    """Map a model's free-text reply back to a real tool name (robust to chatter)."""
+def _match_name(reply: str, tools: list[tuple[str, str]], *, allow_none: bool = False) -> str:
+    """Map a model's free-text reply back to a real tool name (robust to chatter).
+    When ``allow_none``, an explicit decline or an unmatched reply → "" (no tool fired)."""
+    reply = reply.strip()
+    if allow_none and re.match(r"^(none|no tool|nothing|n/?a)\b", reply, re.I):
+        return ""
     names = [n for n, _ in tools]
     if reply in names:
         return reply
     for n in names:
         if n in reply:
             return n
-    return names[0] if names else ""
+    # Unmatched: with allow_none, treat as no-fire (don't fabricate a selection).
+    return "" if allow_none else (names[0] if names else "")
