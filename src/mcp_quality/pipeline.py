@@ -155,12 +155,14 @@ def _decide_exit(config: ProbeConfig, report: Report) -> ExitCode:
         fam = report.families.get(family)
         if fam and fam.measured and _GRADE_ORDER.get(fam.grade, 0) < _GRADE_ORDER.get(floor, 0):
             return ExitCode.GATE_FAILURE
-    # Gate 3: regressions vs snapshot.
+    # Gate 3: regressions vs snapshot — score drop, broken contract, removed tool, or a
+    # capability change (scope expansion / breaking schema) that defeats a prior approval.
     if config.no_regressions and report.regression is not None:
         reg = report.regression
         broke = bool(reg.get("broken_contracts"))
         dropped = any(v < 0 for v in reg.get("score_delta", {}).values())
-        if broke or dropped:
+        drift = bool(reg.get("capability_changes")) or bool(reg.get("removed_tools"))
+        if broke or dropped or drift:
             return ExitCode.GATE_FAILURE
     return ExitCode.OK
 
