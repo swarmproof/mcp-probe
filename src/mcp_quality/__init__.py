@@ -7,7 +7,7 @@ See ``docs/ARCHITECTURE.md`` for the system design and ``docs/PRD.md`` for the
 numbered requirements this package implements.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 # The scoring rubric is versioned so historical scores stay comparable (NFR-7, ADR-008).
 # Bump on any change to weights, grade bands, or sub-score composition.

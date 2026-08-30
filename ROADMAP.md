@@ -46,8 +46,8 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ## 📍 Where we are now
 
-- **Live on PyPI** (`mcp-quality 0.1.0`), published via trusted publishing. The v0.3
-  behavioral-conformance work is merged on `main`, awaiting a `0.3.0` cut.
+- **Live on PyPI** (`mcp-quality 0.3.0`), published via trusted publishing — the v0.3
+  behavioral-conformance milestone.
 - **Six scored families** (Contract · Cost · Legibility · Performance · Security-lite ·
   Safety-Contract) plus an **experimental** spec-surface family, all behind one rubric.
 - **Green CI** across Python 3.11/3.12 — 219 tests (unit · component · integration · E2E
@@ -57,7 +57,7 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ---
 
-## ✅ Shipped — v0.3: behavioral conformance (on `main`)
+## ✅ Shipped — v0.3: behavioral conformance (`0.3.0`)
 
 The checks only a runner can perform: comparing a server's real behavior to its declared
 contract. All merged. ([milestone](https://github.com/swarmproof/mcp-probe/milestone/2))

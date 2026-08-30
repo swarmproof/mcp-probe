@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-quality"
-version = "0.1.0"
+version = "0.3.0"
 description = "The CI quality suite for MCP servers — lint, contract-test, benchmark, and load-test your MCP server before you ship it."
 readme = "README.md"
 requires-python = ">=3.11"
