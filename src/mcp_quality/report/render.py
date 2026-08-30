@@ -170,6 +170,9 @@ def _family_headline(name: str, metrics: dict[str, Any]) -> str:
         return ""
     if name == "cost" and "toolset_tokens" in metrics:
         parts = [f"{metrics['toolset_tokens']} toolset tokens"]
+        ce = metrics.get("context_efficiency") or {}
+        if isinstance(ce.get("response_tokens"), dict):
+            parts.append(f"~{ce['context_footprint']} context footprint")
         if "usd_per_task" in metrics:
             parts.append(f"${metrics['usd_per_task']}/task")
         return "; ".join(parts)

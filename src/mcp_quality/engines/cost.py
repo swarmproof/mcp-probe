@@ -17,6 +17,7 @@ or not anything works (the mcp-xray insight, PRD §7.1). Fully offline & determi
 from __future__ import annotations
 
 import math
+from typing import Any
 
 from mcp_quality.engines.base import EngineBase, clamp
 from mcp_quality.models import FamilyScore, Finding, ProbeContext, Severity, ToolDef
@@ -35,6 +36,11 @@ PER_TOOL_BLOAT = 700
 REMEDIATION_THRESHOLD = 10_000
 # A single tool response heavier than this is flagged as response-bloat (REQ-$5).
 RESPONSE_BLOAT_TOKENS = 1_000
+# Params that let a caller bound a response — a big response with none of these is worse.
+_PAGINATION_PARAMS = {
+    "limit", "offset", "cursor", "page", "per_page", "page_size", "pagesize",
+    "page_token", "max_results", "maxresults", "count", "top", "after", "before",
+}
 # Penalty curve constants, anchored to the documented landmarks (see module docstring).
 _A, _B = 10.7, 1.8
 
@@ -155,6 +161,22 @@ class CostEngine(EngineBase):
             if counter_name.startswith("anthropic:")
             else "estimate (OpenAI tokenizer; undercounts Claude ~15-20%)"
         )
+        # #26: Context Efficiency headline — the schema tax (always paid) plus a
+        # representative response, so builders have one comparable per-server footprint.
+        context_efficiency: dict[str, Any] = {
+            "schema_tokens": toolset_tokens,
+            "response_tokens": "not measured",
+            "context_footprint": toolset_tokens,
+        }
+        if isinstance(response_tokens, dict) and response_tokens:
+            mean_response = round(sum(response_tokens.values()) / len(response_tokens))
+            context_efficiency["response_tokens"] = {
+                "mean": mean_response,
+                "max": max(response_tokens.values()),
+                "sampled_tools": len(response_tokens),
+            }
+            context_efficiency["context_footprint"] = toolset_tokens + mean_response
+
         metrics = {
             "toolset_tokens": toolset_tokens,
             "per_tool_tokens": dict(sorted(per_tool.items(), key=lambda kv: kv[1], reverse=True)),
@@ -164,6 +186,7 @@ class CostEngine(EngineBase):
             "counter_note": estimate_note,
             "tools": len(tools),
             "response_tokens": response_tokens,  # dict, or "not measured"
+            "context_efficiency": context_efficiency,
         }
         from mcp_quality.scoring import grade_for_score
 
@@ -200,18 +223,30 @@ class CostEngine(EngineBase):
                 continue
             out[t.name] = tokens
             if tokens > RESPONSE_BLOAT_TOKENS:
-                findings.append(
-                    Finding(
-                        family=self.name,
-                        code="$5-response-bloat",
-                        severity=Severity.LOW,
-                        tool=t.name,
-                        message=f"tool '{t.name}' returns ~{tokens} tokens per call — a large "
-                        "response tax on top of the schema tax",
-                        remediation="paginate, summarize, or let the caller select fields",
-                        evidence={"response_tokens": tokens},
+                props = set(map(str.lower, (t.input_schema or {}).get("properties", {})))
+                boundable = bool(props & _PAGINATION_PARAMS)
+                if boundable:
+                    findings.append(
+                        Finding(
+                            family=self.name, code="$5-response-bloat", severity=Severity.LOW,
+                            tool=t.name,
+                            message=f"tool '{t.name}' returns ~{tokens} tokens per call — large, "
+                            "though the caller can bound it via pagination",
+                            remediation="lower the default page size, or let the caller select fields",
+                            evidence={"response_tokens": tokens, "boundable": True},
+                        )
                     )
-                )
+                else:
+                    findings.append(
+                        Finding(
+                            family=self.name, code="$7-no-pagination", severity=Severity.MEDIUM,
+                            tool=t.name,
+                            message=f"tool '{t.name}' returns ~{tokens} tokens per call and has no "
+                            "pagination param — an unbounded response tax the caller can't cap",
+                            remediation=f"add a limit/cursor param; projected saving up to ~{tokens} tokens",
+                            evidence={"response_tokens": tokens, "boundable": False},
+                        )
+                    )
         return out
 
     @staticmethod
