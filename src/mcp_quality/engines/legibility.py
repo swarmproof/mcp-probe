@@ -27,6 +27,17 @@ GOAL_TEMPLATES = (
     "Help me {intent}",
 )
 
+# Domain-agnostic prompts no MCP tool should handle — used to measure over-triggering
+# (a tool that fires on these is a false positive). Kept general so they're out-of-scope
+# for essentially any server.
+OUT_OF_SCOPE_PROMPTS = (
+    "What is the capital of France?",
+    "Write a haiku about the ocean.",
+    "What is 17 multiplied by 24?",
+    "Translate 'good morning' into Spanish.",
+    "Summarize the plot of Hamlet in one sentence.",
+)
+
 _LINT_PENALTY = {
     Severity.INFO: 0,
     Severity.LOW: 2,
@@ -88,16 +99,31 @@ class LegibilityEngine(EngineBase):
         top_confusion = probe["top_confusion"]
         mean_conf = probe["mean_confusion"]
 
+        false_fire_rate = probe.get("false_fire_rate", 0.0)
+
         # Build findings from the (possibly cached) probe data — no model calls here, so a
         # cache hit invokes the model zero times (REQ-L6).
         findings = list(lints) + self._findings_from_probe(probe)
+        if false_fire_rate > 0:
+            findings.append(
+                Finding(
+                    family=self.name, code="L6-over-triggering", severity=Severity.MEDIUM,
+                    message=f"tools fired on {false_fire_rate:.0%} of out-of-scope prompts "
+                    "(should have declined) — a spurious-call risk",
+                    remediation="tighten descriptions so tools don't look applicable to unrelated requests",
+                    evidence={"false_fire_rate": round(false_fire_rate, 3)},
+                )
+            )
 
-        base = selection_rate * (1 - mean_conf) * 100
+        # selection accuracy × (1 − confusion) × (1 − over-triggering) − lint penalty
+        base = selection_rate * (1 - mean_conf) * (1 - false_fire_rate) * 100
         score = clamp(base - lint_penalty)
         from mcp_quality.scoring import grade_for_score
 
         metrics = {
             "selection_rate": round(selection_rate, 3),
+            "selection_accuracy": round(selection_rate, 3),  # AST-matched right-tool rate (#29)
+            "false_fire_rate": round(false_fire_rate, 3),
             "top_confusion": top_confusion,
             "mean_confusion": round(mean_conf, 3),
             "model": model.model_id,
@@ -166,8 +192,17 @@ class LegibilityEngine(EngineBase):
         low_tools = [t for t, tot in per_tool_total.items()
                      if tot and (tot - sum(confusion[t].values())) / tot < 0.6]
 
+        # Over-triggering: out-of-scope prompts no tool should handle. A well-behaved
+        # server's tools decline; a fire is a false positive (#29).
+        fires = 0
+        for prompt in OUT_OF_SCOPE_PROMPTS:
+            if model.choose_tool(prompt, tool_pairs, allow_none=True):
+                fires += 1
+        false_fire_rate = fires / len(OUT_OF_SCOPE_PROMPTS)
+
         return {
             "selection_rate": selection_rate,
+            "false_fire_rate": false_fire_rate,
             "top_confusion": top_confusion,
             "mean_confusion": mean_conf,
             "low_tools": low_tools,
