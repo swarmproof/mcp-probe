@@ -28,6 +28,10 @@ class ConnectRecord:
     stateless_discover_ok: bool | None = None  # newer `server/discover` + _meta path, if any
     server_info: dict[str, Any] = field(default_factory=dict)
     capabilities: dict[str, Any] = field(default_factory=dict)
+    # 2026-07-28 (stateless) conformance signals (#32). None = not measured (never fabricated).
+    supported_versions: list[str] = field(default_factory=list)
+    tools_list_stable: bool | None = None  # identical tools/list across two fresh connections
+    meta_enforced: bool | None = None  # server rejects requests missing required _meta
 
 
 @dataclass

@@ -9,7 +9,9 @@ determinism probe calls a tool twice; Performance hammers it), and unwound once 
 Handshake reality check: the current SDK negotiates via ``initialize`` and reports the
 server's ``protocolVersion``. There is no ``server/discover`` method in the SDK, so the
 "stateless discovery" path from the design doc is left unprobed (``stateless_discover_ok
-= None``) rather than fabricated — we grade what the protocol actually does.
+= None``) rather than fabricated — we grade what the protocol actually does. The one
+stateless-conformance rule we *can* check black-box today (#32) is ``tools/list``
+stability across two fresh connections — done with a second, short-lived session.
 """
 
 from __future__ import annotations
@@ -95,10 +97,36 @@ async def connect(config: ProbeConfig) -> tuple[MCPClient, ServerSurface]:
             capabilities=_dump(getattr(init, "capabilities", {})) or {},
         )
         surface = await _discover(session, record)
+        # #32: stateless-conformance — is tools/list identical on a second fresh connection?
+        record.tools_list_stable = await _probe_tools_list_stability(
+            config, transport, surface.surface_hash
+        )
         return MCPClient(session, stack, record), surface
     except Exception:
         await stack.aclose()
         raise
+
+
+async def _probe_tools_list_stability(
+    config: ProbeConfig, transport: Transport, first_hash: str
+) -> bool | None:
+    """Open a *second* fresh connection and compare tools/list to the first (#32).
+
+    Per-connection variance means an agent's tool set depends on which connection it opened
+    — a stateless-conformance bug. Best-effort and isolated: any failure (server can't take a
+    second connection, transport quirk) returns ``None`` = not measured, never a false alarm."""
+    stack = AsyncExitStack()
+    try:
+        read, write = await _open_streams(stack, transport, config)
+        session = await stack.enter_async_context(ClientSession(read, write))
+        await asyncio.wait_for(session.initialize(), timeout=config.stdio_timeout)
+        tools = await _list_all(session.list_tools, "tools")
+        second = surface_from_tools([_dump(t) for t in tools])
+        return second.surface_hash == first_hash
+    except Exception:
+        return None
+    finally:
+        await stack.aclose()
 
 
 async def _open_streams(stack: AsyncExitStack, transport: Transport, config: ProbeConfig):

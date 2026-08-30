@@ -65,6 +65,16 @@ async def test_e2e_error_path_clean_on_good_server():
     assert aff is not None and 0 <= aff <= 100
 
 
+async def test_e2e_stateless_tools_list_stable_on_good_server():
+    # #32: the transport opens a second fresh connection; a well-behaved server returns an
+    # identical tools/list, so the black-box stability probe measures True (no C12 finding).
+    cfg = ProbeConfig(target=_target("good_server.py"), families=("contract",))
+    outcome = await run_probe(cfg)
+    readiness = outcome.report.families["contract"].metrics["stateless_readiness"]
+    assert readiness["tools_list_stable"] is True
+    assert not any(f.code == "C12-tools-list-unstable" for f in outcome.report.all_findings())
+
+
 async def test_e2e_7_static_mode_not_measured():
     dump = SERVERS / "dump.mcp.json"
     cfg = ProbeConfig(static_path=str(dump), families=("contract", "cost"))

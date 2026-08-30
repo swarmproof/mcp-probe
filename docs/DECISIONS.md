@@ -41,6 +41,17 @@ right. The `ConnectRecord.stateless_discover_ok` field is already present, so th
 drops in when the RC finalises and the SDK exposes it. The forward-compat lint (REQ-C10)
 still fires for legacy/SSE-only transports today.
 
+**Update (#32) — black-box stateless-conformance grading shipped.** We now grade the
+`2026-07-28` transition version-aware, requiring neither path (`contract/stateless.py`,
+codes `C12-*`). The signals the SDK *can't* give us (`server/discover`, `_meta`
+enforcement) stay `None` = not measured, never fabricated — so a legacy server gets a
+gentle `C10` nudge, a server that *negotiates* the stateless revision but breaks its rules
+gets a real `C12` finding. The one rule we *can* verify black-box today — `tools/list`
+identical across two fresh connections — is probed live in `transport.py`
+(`_probe_tools_list_stability`, best-effort → `None` on any failure) and carries a bounded
+score penalty when it comes back `False`. `stateless_readiness` rides in the Contract
+metrics.
+
 ## D3 — Offline token counter falls back to a deterministic heuristic
 
 **Spec:** REQ-$4 wants authoritative counts via a provider `count_tokens` and a
