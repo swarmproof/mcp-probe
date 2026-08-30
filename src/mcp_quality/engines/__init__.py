@@ -8,14 +8,16 @@ from mcp_quality.engines.contract import ContractEngine
 from mcp_quality.engines.cost import CostEngine
 from mcp_quality.engines.legibility import LegibilityEngine
 from mcp_quality.engines.performance import PerformanceEngine
+from mcp_quality.engines.safety import SafetyEngine
 from mcp_quality.engines.security import SecurityEngine
 
-# All five families. Contract/Cost/Security are static-ok; Performance is live-only;
+# Six families. Contract/Cost/Security/Safety are static-ok; Performance is live-only;
 # Legibility is [llm] (runs offline lints without a model, full probe with one).
 ENGINE_REGISTRY: dict[str, type[EngineBase]] = {
     "contract": ContractEngine,
     "cost": CostEngine,
     "security": SecurityEngine,
+    "safety": SafetyEngine,
     "performance": PerformanceEngine,
     "legibility": LegibilityEngine,
 }
@@ -31,6 +33,7 @@ __all__ = [
     "ContractEngine",
     "CostEngine",
     "SecurityEngine",
+    "SafetyEngine",
     "PerformanceEngine",
     "LegibilityEngine",
     "register",

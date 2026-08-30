@@ -97,10 +97,11 @@ def _add_common_flags(sp: argparse.ArgumentParser) -> None:
 
 
 def _add_family_flags(sp: argparse.ArgumentParser) -> None:
-    sp.add_argument("--all", dest="all_families", action="store_true", help="run all five families")
+    sp.add_argument("--all", dest="all_families", action="store_true", help="run all check families")
     sp.add_argument("--legibility", action="store_true", help="add the Legibility (LLM) family")
     sp.add_argument("--performance", action="store_true", help="add the Performance (load) family")
     sp.add_argument("--security", action="store_true", help="add the Security-lite family")
+    sp.add_argument("--safety", action="store_true", help="add the Safety-Contract family")
     sp.add_argument("--deep-security", action="store_true", help="shell out to mcp-scan / Cisco")
     sp.add_argument("--model", default=None, help="legibility model, e.g. 'ollama:qwen2.5-3b'")
     sp.add_argument(
@@ -125,6 +126,8 @@ def _families_from_args(args: argparse.Namespace) -> tuple[str, ...]:
         families.append("performance")
     if getattr(args, "security", False) or getattr(args, "deep_security", False):
         families.append("security")
+    if getattr(args, "safety", False):
+        families.append("safety")
     # de-dup, keep canonical order
     return tuple(f for f in ALL_FAMILIES if f in set(families))
 

@@ -20,7 +20,7 @@ ENV_PREFIX = "MCP_PROBE_"
 FAST_PATH_FAMILIES = ("contract", "cost")
 LIVE_FAMILIES = ("contract", "performance", "security")  # need a live client for full scoring
 LLM_FAMILIES = ("legibility",)
-ALL_FAMILIES = ("contract", "legibility", "cost", "performance", "security")
+ALL_FAMILIES = ("contract", "legibility", "cost", "performance", "security", "safety")
 
 
 @dataclass

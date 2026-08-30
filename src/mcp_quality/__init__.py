@@ -11,7 +11,7 @@ __version__ = "0.1.0"
 
 # The scoring rubric is versioned so historical scores stay comparable (NFR-7, ADR-008).
 # Bump on any change to weights, grade bands, or sub-score composition.
-RUBRIC_VERSION = "2026.07.1"
+RUBRIC_VERSION = "2026.08.1"
 
 # The machine-readable report contract consumed by CI, registries, and the badge.
 REPORT_SCHEMA = "mcp-quality/report@1"

@@ -19,13 +19,15 @@ from dataclasses import dataclass
 from mcp_quality import RUBRIC_VERSION
 from mcp_quality.models import FamilyScore
 
-# Default weights (PRD §7.1). Must sum to 1.0.
+# Default weights (PRD §7.1). Only *relative* proportions matter — the Scorer renormalizes
+# over the families actually measured — so adding a family changes only runs that include it.
 DEFAULT_WEIGHTS: dict[str, float] = {
     "cost": 0.30,
     "legibility": 0.25,
     "contract": 0.20,
     "performance": 0.15,
     "security": 0.10,
+    "safety": 0.10,  # annotation truthfulness / retry-safety (#28)
 }
 
 # Letter bands (PRD §7.2). Applied to the raw score: 90.0 → A, 89.x → B.
