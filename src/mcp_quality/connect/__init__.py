@@ -6,6 +6,12 @@ client *interface* and the discovery/surface logic live here and in ``client.py`
 engines depend on a stable façade, not the SDK directly.
 """
 
+from mcp_quality.connect.capture import (
+    CaptureLog,
+    ElicitedRequest,
+    ResourceResolution,
+    SampledMessage,
+)
 from mcp_quality.connect.client import (
     ConnectRecord,
     FakeClient,
@@ -19,10 +25,14 @@ from mcp_quality.connect.discover import (
 )
 
 __all__ = [
+    "CaptureLog",
     "ConnectRecord",
+    "ElicitedRequest",
     "FakeClient",
     "InvokeResult",
     "MCPClientProtocol",
+    "ResourceResolution",
+    "SampledMessage",
     "surface_from_dump",
     "surface_from_payload",
     "surface_from_tools",

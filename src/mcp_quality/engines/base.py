@@ -42,6 +42,8 @@ class EngineBase:
     # overlay (#31) short-circuits them to pass^k = 1.0 with no reruns. Families whose
     # result can vary across runs (model sampling, live load timing) set this False.
     deterministic: bool = True
+    # True → opt-in, zero rubric weight; reported but never moves the grade or gates (#33).
+    experimental: bool = False
 
     async def run(self, ctx: ProbeContext) -> FamilyScore:  # pragma: no cover - abstract
         raise NotImplementedError

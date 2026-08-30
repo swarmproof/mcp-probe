@@ -98,8 +98,10 @@ class Scorer:
         )
         grade = grade_for_score(overall)
 
-        # Hard-gate: explicit trip, or any measured family at F.
-        gate_family = self._find_hard_gate(measured)
+        # Hard-gate: explicit trip, or any measured family at F — but only families that
+        # carry weight can gate (a zero-weight experimental family is reported, never gates).
+        gating = {name: fam for name, fam in measured.items() if effective.get(name, 0.0) > 0.0}
+        gate_family = self._find_hard_gate(gating)
         if gate_family is not None:
             grade = _cap_grade(grade, HARD_GATE_CAP)
 

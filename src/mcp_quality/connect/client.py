@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+from mcp_quality.connect.capture import CaptureLog, ResourceResolution
+
 
 @dataclass
 class ConnectRecord:
@@ -48,8 +50,11 @@ class InvokeResult:
 @runtime_checkable
 class MCPClientProtocol(Protocol):
     connect_record: ConnectRecord
+    capture: CaptureLog  # server-originated messages observed during the run (#33)
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> InvokeResult: ...
+
+    async def read_resource(self, uri: str) -> ResourceResolution: ...
 
     async def close(self) -> None: ...
 
@@ -66,6 +71,8 @@ class FakeClient:
         results: dict[str, Any] | None = None,
         *,
         connect_record: ConnectRecord | None = None,
+        capture: CaptureLog | None = None,
+        resources: dict[str, ResourceResolution] | None = None,
     ) -> None:
         self._results = results or {}
         self.connect_record = connect_record or ConnectRecord(
@@ -73,6 +80,8 @@ class FakeClient:
             protocol_version="2025-11-25",
             legacy_handshake_ok=True,
         )
+        self.capture = capture or CaptureLog()
+        self._resources = resources or {}
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> InvokeResult:
@@ -87,6 +96,12 @@ class FakeClient:
 
             return spec(args) if len(inspect.signature(spec).parameters) >= 1 else spec()
         return spec
+
+    async def read_resource(self, uri: str) -> ResourceResolution:
+        spec = self._resources.get(uri)
+        if spec is not None:
+            return spec
+        return ResourceResolution(uri=uri, ok=True)
 
     async def close(self) -> None:
         return None

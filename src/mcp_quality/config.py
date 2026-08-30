@@ -18,9 +18,11 @@ ENV_PREFIX = "MCP_PROBE_"
 
 # The five families in canonical order, and which are on the zero-LLM fast path.
 FAST_PATH_FAMILIES = ("contract", "cost")
-LIVE_FAMILIES = ("contract", "performance", "security")  # need a live client for full scoring
+LIVE_FAMILIES = ("contract", "performance", "security", "spec")  # need a live client
 LLM_FAMILIES = ("legibility",)
 ALL_FAMILIES = ("contract", "legibility", "cost", "performance", "security", "safety")
+# Experimental families are opt-in only (never in --all); zero rubric weight (#33).
+EXPERIMENTAL_FAMILIES = ("spec",)
 
 
 @dataclass
@@ -71,6 +73,9 @@ class ProbeConfig:
 
     # --- security ---
     deep_security: bool = False  # shell out to mcp-scan / Cisco (REQ-S4)
+
+    # --- experimental (#33) ---
+    experimental: bool = False  # enable experimental families (spec-surface); opt-in, unscored
 
     # --- outputs ---
     json_out: bool = False

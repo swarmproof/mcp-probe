@@ -25,8 +25,10 @@ def report_to_dict(report: Report, *, include_meta: bool = True) -> dict[str, An
     }
 
     families_out: dict[str, Any] = {}
-    # Emit in canonical family order for deterministic diffing.
-    for name in ALL_FAMILIES:
+    # Emit in canonical family order for deterministic diffing, then any extra (experimental)
+    # families not in the canonical list — sorted for stability.
+    extra = sorted(n for n in report.families if n not in ALL_FAMILIES)
+    for name in (*ALL_FAMILIES, *extra):
         fam = report.families.get(name)
         if fam is None:
             continue

@@ -102,6 +102,8 @@ def _add_family_flags(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--performance", action="store_true", help="add the Performance (load) family")
     sp.add_argument("--security", action="store_true", help="add the Security-lite family")
     sp.add_argument("--safety", action="store_true", help="add the Safety-Contract family")
+    sp.add_argument("--experimental", action="store_true",
+                    help="add experimental spec-surface checks (sampling/resources/elicitation)")
     sp.add_argument("--deep-security", action="store_true", help="shell out to mcp-scan / Cisco")
     sp.add_argument("--model", default=None, help="legibility model, e.g. 'ollama:qwen2.5-3b'")
     sp.add_argument(
@@ -130,8 +132,11 @@ def _families_from_args(args: argparse.Namespace) -> tuple[str, ...]:
         families.append("security")
     if getattr(args, "safety", False):
         families.append("safety")
-    # de-dup, keep canonical order
-    return tuple(f for f in ALL_FAMILIES if f in set(families))
+    # de-dup, keep canonical order; experimental families append after the scored set.
+    ordered = [f for f in ALL_FAMILIES if f in set(families)]
+    if getattr(args, "experimental", False):
+        ordered.append("spec")
+    return tuple(ordered)
 
 
 def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
@@ -148,6 +153,7 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
         "stdio_timeout": getattr(args, "stdio_timeout", None),
         "transport": getattr(args, "transport", None),
         "deep_security": _true_or_none(getattr(args, "deep_security", False)),
+        "experimental": _true_or_none(getattr(args, "experimental", False)),
         "model": getattr(args, "model", None),
         "token_model": getattr(args, "token_model", None),
         "response_bloat": _true_or_none(getattr(args, "response_bloat", False)),
