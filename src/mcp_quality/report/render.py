@@ -29,7 +29,7 @@ _GRADE_STYLE: dict[str, str] = {
     NOT_MEASURED: "dim",
 }
 
-_FAMILY_ORDER = ("cost", "legibility", "contract", "performance", "security", "safety")
+_FAMILY_ORDER = ("cost", "legibility", "contract", "performance", "security", "safety", "spec")
 
 
 def _grade_text(grade: str) -> Text:
@@ -228,6 +228,11 @@ def _family_headline(name: str, metrics: dict[str, Any]) -> str:
         return f"p95 {metrics['p95_ms']}ms; degradation {metrics.get('degradation', '?')}"
     if name == "contract":
         return metrics.get("summary", "")
+    if name == "spec":
+        exercised = metrics.get("exercised")
+        if exercised:
+            return "experimental · " + ", ".join(exercised)
+        return metrics.get("reason", "")
     return metrics.get("reason", "")
 
 

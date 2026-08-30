@@ -102,6 +102,16 @@ server that works 9 times in 10 is a 10% incident rate — pass^k over 5 runs is
 A. Deterministic families (Contract, Cost, Safety) short-circuit to 100% with no reruns, so
 the fast path stays free.
 
+### Experimental — `--experimental` (spec-surface)
+
+Beyond tools, MCP servers can talk back: `sampling/createMessage`, `elicitation/create`,
+and advertised resources — the surfaces where a server can smuggle instructions into your
+model, phish your user, or dangle links that don't resolve. `--experimental` adds a
+**spec-surface** family that drives the read-only tools, captures those server-originated
+messages, and grades them (sampling-injection, over-broad context, sensitive-form
+elicitation, unresolvable resources). It's **opt-in and carries zero rubric weight** — it's
+reported but never moves your grade while these spec surfaces are still stabilizing.
+
 ## Where it fits
 
 mcp-quality doesn't compete with the security scanners or the point tools — it unifies the

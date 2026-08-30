@@ -10,9 +10,11 @@ from mcp_quality.engines.legibility import LegibilityEngine
 from mcp_quality.engines.performance import PerformanceEngine
 from mcp_quality.engines.safety import SafetyEngine
 from mcp_quality.engines.security import SecurityEngine
+from mcp_quality.engines.spec_surface import SpecSurfaceEngine
 
-# Six families. Contract/Cost/Security/Safety are static-ok; Performance is live-only;
-# Legibility is [llm] (runs offline lints without a model, full probe with one).
+# Six scored families + one experimental. Contract/Cost/Security/Safety are static-ok;
+# Performance is live-only; Legibility is [llm]; Spec-surface is live-only, experimental
+# (opt-in via --experimental, zero rubric weight — reported but never moves the grade).
 ENGINE_REGISTRY: dict[str, type[EngineBase]] = {
     "contract": ContractEngine,
     "cost": CostEngine,
@@ -20,6 +22,7 @@ ENGINE_REGISTRY: dict[str, type[EngineBase]] = {
     "safety": SafetyEngine,
     "performance": PerformanceEngine,
     "legibility": LegibilityEngine,
+    "spec": SpecSurfaceEngine,
 }
 
 
@@ -36,6 +39,7 @@ __all__ = [
     "SafetyEngine",
     "PerformanceEngine",
     "LegibilityEngine",
+    "SpecSurfaceEngine",
     "register",
     "clamp",
     "penalty_score",

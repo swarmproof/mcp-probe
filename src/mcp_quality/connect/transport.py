@@ -24,8 +24,15 @@ from typing import Any
 from mcp import ClientSession, McpError, StdioServerParameters, stdio_client
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
+from mcp.types import CreateMessageResult, ElicitResult, TextContent
 
 from mcp_quality.config import ProbeConfig
+from mcp_quality.connect.capture import (
+    CaptureLog,
+    ElicitedRequest,
+    ResourceResolution,
+    SampledMessage,
+)
 from mcp_quality.connect.client import ConnectRecord, InvokeResult
 from mcp_quality.connect.discover import surface_from_tools
 from mcp_quality.models import ServerSurface, Transport
@@ -34,10 +41,28 @@ from mcp_quality.models import ServerSurface, Transport
 class MCPClient:
     """Live SDK-backed client. Constructed by :func:`connect`, which also discovers."""
 
-    def __init__(self, session: ClientSession, stack: AsyncExitStack, record: ConnectRecord) -> None:
+    def __init__(
+        self,
+        session: ClientSession,
+        stack: AsyncExitStack,
+        record: ConnectRecord,
+        capture: CaptureLog,
+    ) -> None:
         self._session = session
         self._stack = stack
         self.connect_record = record
+        self.capture = capture
+
+    async def read_resource(self, uri: str) -> ResourceResolution:
+        """Attempt to resolve one advertised resource / resource_link (#33)."""
+        try:
+            from pydantic import AnyUrl
+
+            result = await self._session.read_resource(AnyUrl(uri))
+            ok = bool(getattr(result, "contents", None))
+            return ResourceResolution(uri=uri, ok=ok, error=None if ok else "empty contents")
+        except Exception as exc:
+            return ResourceResolution(uri=uri, ok=False, error=str(exc))
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> InvokeResult:
         # A JSON-RPC error (McpError) is a *clean* protocol response, not a crash — normalize
@@ -82,9 +107,13 @@ async def connect(config: ProbeConfig) -> tuple[MCPClient, ServerSurface]:
     """
     transport = _pick_transport(config)
     stack = AsyncExitStack()
+    capture = CaptureLog()
     try:
         read, write = await _open_streams(stack, transport, config)
-        session = await stack.enter_async_context(ClientSession(read, write))
+        sampling_cb, elicit_cb = _capture_callbacks(capture)
+        session = await stack.enter_async_context(
+            ClientSession(read, write, sampling_callback=sampling_cb, elicitation_callback=elicit_cb)
+        )
         init = await asyncio.wait_for(session.initialize(), timeout=config.stdio_timeout)
 
         record = ConnectRecord(
@@ -101,10 +130,52 @@ async def connect(config: ProbeConfig) -> tuple[MCPClient, ServerSurface]:
         record.tools_list_stable = await _probe_tools_list_stability(
             config, transport, surface.surface_hash
         )
-        return MCPClient(session, stack, record), surface
+        return MCPClient(session, stack, record, capture), surface
     except Exception:
         await stack.aclose()
         raise
+
+
+def _capture_callbacks(capture: CaptureLog):
+    """Build passive sampling/elicitation callbacks that *record* server-originated requests
+    (#33) and return a benign, non-executing response so the server call completes. We never
+    actually run the requested LLM sampling or collect real user input — the point is to
+    inspect what the server *asked for*, safely (ADR-009, read-only spirit)."""
+
+    async def on_sampling(context: Any, params: Any) -> CreateMessageResult:
+        capture.used_sampling = True
+        capture.sampling.append(
+            SampledMessage(
+                system_prompt=getattr(params, "systemPrompt", "") or "",
+                messages=[_dump(m) for m in getattr(params, "messages", []) or []],
+                include_context=getattr(params, "includeContext", None),
+                max_tokens=getattr(params, "maxTokens", None),
+            )
+        )
+        return CreateMessageResult(
+            role="assistant",
+            content=TextContent(type="text", text="[mcp-quality probe] sampling not executed"),
+            model="mcp-quality-probe",
+            stopReason="endTurn",
+        )
+
+    async def on_elicit(context: Any, params: Any) -> ElicitResult:
+        capture.used_elicitation = True
+        # The SDK models URL vs form elicitation as distinct param types (#33).
+        cls = type(params).__name__
+        mode = "url" if "URL" in cls or "Url" in cls else ("form" if "Form" in cls else "unknown")
+        schema = _dump(getattr(params, "requestedSchema", {})) or {}
+        capture.elicitations.append(
+            ElicitedRequest(
+                message=getattr(params, "message", "") or "",
+                mode=mode,
+                schema=schema if isinstance(schema, dict) else {},
+                url=getattr(params, "url", None),
+            )
+        )
+        return ElicitResult(action="decline")  # never submit real user input
+
+    return on_sampling, on_elicit
 
 
 async def _probe_tools_list_stability(

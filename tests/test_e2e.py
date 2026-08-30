@@ -75,6 +75,21 @@ async def test_e2e_stateless_tools_list_stable_on_good_server():
     assert not any(f.code == "C12-tools-list-unstable" for f in outcome.report.all_findings())
 
 
+async def test_e2e_spec_surface_experimental_captures_sampling():
+    # #33: the harness drives read-only tools; the fixture's tool fires sampling with an
+    # injection tell and advertises a resolvable resource. Experimental → never gates.
+    cfg = ProbeConfig(target=_target("spec_server.py"), families=("contract", "spec"),
+                      experimental=True)
+    outcome = await run_probe(cfg)
+    spec = outcome.report.families["spec"]
+    assert spec.measured is True
+    assert "sampling" in spec.metrics["exercised"]
+    assert "resources" in spec.metrics["exercised"]
+    assert any(f.code == "SS1-sampling-injection" for f in spec.findings)
+    assert outcome.report.weights.get("spec", 0.0) == 0.0  # zero rubric weight
+    assert outcome.report.hard_gate != "spec"
+
+
 async def test_e2e_7_static_mode_not_measured():
     dump = SERVERS / "dump.mcp.json"
     cfg = ProbeConfig(static_path=str(dump), families=("contract", "cost"))
