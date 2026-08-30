@@ -38,6 +38,10 @@ class EngineBase:
     name: str = "base"
     requires_live: bool = False
     requires_llm: bool = False
+    # True → repeated runs on the same surface are byte-identical, so the reliability
+    # overlay (#31) short-circuits them to pass^k = 1.0 with no reruns. Families whose
+    # result can vary across runs (model sampling, live load timing) set this False.
+    deterministic: bool = True
 
     async def run(self, ctx: ProbeContext) -> FamilyScore:  # pragma: no cover - abstract
         raise NotImplementedError

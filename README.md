@@ -93,6 +93,15 @@ a commit silently breaks a tool or drops a score. `mcp-quality badge` emits an
 Overall score = a weighted, **versioned rubric**; measured families are renormalized, and
 an F in any family hard-gates the grade to C.
 
+### Reliability overlay — `--reliability K`
+
+Accuracy asks *"can it work?"*; reliability asks *"will it work **every** time?"* — the
+number a deploy gate actually cares about. `--reliability K` reruns the nondeterministic
+families K times and reports **pass^k**: the projected probability all K runs pass. A
+server that works 9 times in 10 is a 10% incident rate — pass^k over 5 runs is 59%, not an
+A. Deterministic families (Contract, Cost, Safety) short-circuit to 100% with no reruns, so
+the fast path stays free.
+
 ## Where it fits
 
 mcp-quality doesn't compete with the security scanners or the point tools — it unifies the

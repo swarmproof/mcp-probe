@@ -100,6 +100,8 @@ def render_terminal(report: Report, *, console: Console | None = None) -> str:
             if f.remediation:
                 con.print(Text(f"      ↳ {f.remediation}", style="dim"))
 
+    _render_reliability(con, report)
+
     out = buffer.getvalue()
 
     # The disambiguation matrix goes last — the headline artifact when legibility ran.
@@ -152,6 +154,43 @@ def render_confusion_matrix(metrics: dict[str, Any], *, console: Console | None 
     if console is not None:
         console.print(out, end="")
     return out
+
+
+def _reliability_style(rate: float) -> str:
+    if rate >= 0.99:
+        return "green"
+    if rate >= 0.8:
+        return "yellow"
+    return "bold red"
+
+
+def _render_reliability(con: Console, report: Report) -> None:
+    """The pass^k overlay (#31): projected probability every family passes K runs in a row.
+    Only the flaky families (pass^k < 100%) are listed — a clean run just shows 'consistent'."""
+    rel = report.meta.get("reliability")
+    if not rel or rel.get("k", 1) <= 1:
+        return
+    k = rel["k"]
+    overall = float(rel.get("overall_pass_hat_k", 0.0))
+    con.print(Text(f"\nReliability  (pass^k over k={k} runs)", style=f"bold {OXBLOOD}"))
+    con.print(
+        Text.assemble(
+            ("  overall  ", "white"),
+            (f"{overall:.0%}", _reliability_style(overall)),
+            (f"   (per-run {float(rel.get('overall_pass_rate', 0.0)):.0%})", "dim"),
+        )
+    )
+    flaky = {n: v for n, v in rel.get("per_family", {}).items() if float(v) < 0.99}
+    for name, phk in sorted(flaky.items(), key=lambda kv: kv[1]):
+        con.print(
+            Text.assemble(
+                (f"    {name:<12} ", "cyan"),
+                (f"{float(phk):.0%}", _reliability_style(float(phk))),
+                ("  flaky — inconsistent across runs", "dim"),
+            )
+        )
+    if not flaky:
+        con.print(Text("    all families consistent across runs", style="dim"))
 
 
 def _severity_style(name: str) -> str:

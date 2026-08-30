@@ -291,6 +291,7 @@ class CheckEngine(Protocol):
     name: str
     requires_live: bool  # True → skipped/degraded in `static` mode (reported not-measured)
     requires_llm: bool  # True → off the CI-critical fast path (ADR-002)
+    deterministic: bool  # False → the reliability overlay reruns it K times (#31)
 
     async def run(self, ctx: ProbeContext) -> FamilyScore: ...
 
