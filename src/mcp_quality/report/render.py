@@ -29,7 +29,7 @@ _GRADE_STYLE: dict[str, str] = {
     NOT_MEASURED: "dim",
 }
 
-_FAMILY_ORDER = ("cost", "legibility", "contract", "performance", "security")
+_FAMILY_ORDER = ("cost", "legibility", "contract", "performance", "security", "safety")
 
 
 def _grade_text(grade: str) -> Text:

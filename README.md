@@ -79,18 +79,19 @@ Commit a baseline with `mcp-quality snapshot "…"` and `--no-regressions` fails
 a commit silently breaks a tool or drops a score. `mcp-quality badge` emits an
 `mcp-quality: A` SVG + shields.io endpoint for your README.
 
-## The five check families
+## The check families
 
 | Family | What it measures | Path |
 |--------|------------------|------|
-| **Contract** | JSON-RPC/handshake conformance, schema validity, output conformance, determinism & error-path probes, snapshot regression | zero-LLM |
-| **Cost** | token weight of your whole toolset, per-tool bloat (leave-one-out), response bloat, $-per-task | zero-LLM |
-| **Legibility** *(the differentiator)* | agent-comprehension score, the **disambiguation matrix**, description lints — with proposed rewrites you can auto-PR | small model |
+| **Contract** | JSON-RPC/handshake conformance, schema validity, output conformance, determinism & error-path/recovery probes, snapshot & version-drift regression | zero-LLM |
+| **Cost** | token weight of your whole toolset, per-tool bloat (leave-one-out), runtime response bloat, Context Efficiency, $-per-task | zero-LLM |
+| **Legibility** *(the differentiator)* | agent-comprehension score, the **disambiguation matrix**, selection accuracy + over-triggering, description lints — with proposed rewrites you can auto-PR | small model |
 | **Performance** | concurrent-agent load with *real MCP semantics* (not naive HTTP), p50/p95/p99, max concurrency, connection-leak detection | live |
 | **Security-lite** | injection / secrets / dangerous-capability lints mapped to the OWASP MCP Top 10; `--deep-security` integrates the specialists | zero-LLM + opt-in |
+| **Safety-Contract** | are the tool annotations *true*? — a `delete_*` tool marked `readOnlyHint` (bypasses host confirmation), missing hints, retry-unsafe writes | zero-LLM |
 
-Overall score = a weighted, **versioned rubric** (Cost 30 · Legibility 25 · Contract 20 ·
-Performance 15 · Security 10); an F in any family hard-gates the grade to C.
+Overall score = a weighted, **versioned rubric**; measured families are renormalized, and
+an F in any family hard-gates the grade to C.
 
 ## Where it fits
 
