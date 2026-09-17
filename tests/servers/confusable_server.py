@@ -3,10 +3,10 @@ in the disambiguation matrix (TEST-PLAN §2, REQ-L2)."""
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-mcp = FastMCP("confusable-server")
+mcp = MCPServer("confusable-server")
 
 
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False), description="Remove a record by id.")

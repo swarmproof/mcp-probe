@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import argparse
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
 
-def build(port: int) -> FastMCP:
-    mcp = FastMCP("http-server", host="127.0.0.1", port=port)
+def build() -> MCPServer:
+    mcp = MCPServer("http-server")
 
     @mcp.tool(
         annotations=ToolAnnotations(readOnlyHint=True),
@@ -40,4 +40,4 @@ if __name__ == "__main__":
     parser.add_argument("--transport", default="streamable-http", choices=["streamable-http", "sse"])
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
-    build(args.port).run(transport=args.transport)
+    build().run(transport=args.transport, host="127.0.0.1", port=args.port)

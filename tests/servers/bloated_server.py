@@ -3,10 +3,10 @@
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-mcp = FastMCP("bloated-server")
+mcp = MCPServer("bloated-server")
 
 _BLURB = (
     "This tool performs an extremely comprehensive, configurable, enterprise-grade "

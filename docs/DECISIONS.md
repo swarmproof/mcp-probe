@@ -52,6 +52,18 @@ identical across two fresh connections — is probed live in `transport.py`
 score penalty when it comes back `False`. `stateless_readiness` rides in the Contract
 metrics.
 
+**Update (#22) — migrated to SDK v2; `server/discover` is now probed.** The `mcp<2` pin is
+lifted (`mcp>=2,<3`). SDK v2 ships the real `server/discover` method, so `connect()` now
+calls `session.discover()` best-effort: `stateless_discover_ok` and `supported_versions`
+are **measured** signals, not the `None` they had to be on v1 (a server that doesn't
+implement discover → `False`, which the grader turns into a C10 nudge or a C12 finding by
+revision). v2 changes absorbed at the single SDK boundary (`transport.py` + the fixtures):
+`FastMCP`→`MCPServer`, `McpError`→`MCPError`, result/params to snake_case
+(`is_error`/`structured_content`/`system_prompt`/`stop_reason`), and HTTP auth headers via
+`create_mcp_http_client`. Annotation-key casing (v2 emits snake_case `read_only_hint`) is
+normalized to canonical camelCase in `discover.py` so no engine changed. Only `_meta`
+enforcement remains unprobed (still `None` = not measured).
+
 ## D3 — Offline token counter falls back to a deterministic heuristic
 
 **Spec:** REQ-$4 wants authoritative counts via a provider `count_tokens` and a

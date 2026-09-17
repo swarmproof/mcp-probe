@@ -6,12 +6,12 @@ see the SDK. The session is held open for the whole run via an ``AsyncExitStack`
 determinism probe calls a tool twice; Performance hammers it), and unwound once on
 ``close()``.
 
-Handshake reality check: the current SDK negotiates via ``initialize`` and reports the
-server's ``protocolVersion``. There is no ``server/discover`` method in the SDK, so the
-"stateless discovery" path from the design doc is left unprobed (``stateless_discover_ok
-= None``) rather than fabricated — we grade what the protocol actually does. The one
-stateless-conformance rule we *can* check black-box today (#32) is ``tools/list``
-stability across two fresh connections — done with a second, short-lived session.
+Handshake: SDK v2 negotiates via ``initialize`` and also exposes the real stateless
+``server/discover`` path. We probe both — ``initialize`` for the legacy handshake, then a
+best-effort ``session.discover()`` (#32) so ``stateless_discover_ok`` is a *measured*
+signal (True/False), not the fabricated ``None`` it had to be on v1. We also check
+``tools/list`` stability across two fresh connections. All SDK access is confined here;
+result/field access uses v2's snake_case (``is_error``, ``structured_content``).
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import shlex
 from contextlib import AsyncExitStack
 from typing import Any
 
-from mcp import ClientSession, McpError, StdioServerParameters, stdio_client
+from mcp import ClientSession, MCPError, StdioServerParameters, stdio_client
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.types import CreateMessageResult, ElicitResult, TextContent
@@ -56,27 +56,25 @@ class MCPClient:
     async def read_resource(self, uri: str) -> ResourceResolution:
         """Attempt to resolve one advertised resource / resource_link (#33)."""
         try:
-            from pydantic import AnyUrl
-
-            result = await self._session.read_resource(AnyUrl(uri))
+            result = await self._session.read_resource(uri)
             ok = bool(getattr(result, "contents", None))
             return ResourceResolution(uri=uri, ok=ok, error=None if ok else "empty contents")
         except Exception as exc:
             return ResourceResolution(uri=uri, ok=False, error=str(exc))
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> InvokeResult:
-        # A JSON-RPC error (McpError) is a *clean* protocol response, not a crash — normalize
+        # A JSON-RPC error (MCPError) is a *clean* protocol response, not a crash — normalize
         # it to an is_error result so engines stay SDK-agnostic and only real crashes raise.
         try:
             result = await self._session.call_tool(name, args)
-        except McpError as exc:
+        except MCPError as exc:
             return InvokeResult(tool=name, is_error=True, content={"error": str(exc)}, raw=exc)
         content = [_dump(block) for block in (result.content or [])]
         return InvokeResult(
             tool=name,
-            is_error=bool(result.isError),
+            is_error=bool(result.is_error),
             content=content,
-            structured=result.structuredContent,
+            structured=result.structured_content,
             raw=result,
         )
 
@@ -89,6 +87,13 @@ def _dump(obj: Any) -> Any:
     if hasattr(obj, "model_dump"):
         return obj.model_dump(mode="json")
     return obj
+
+
+def _as_str(value: Any) -> str | None:
+    """Coerce a possibly-enum SDK value (e.g. IncludeContext, a version) to a plain str."""
+    if value is None:
+        return None
+    return getattr(value, "value", None) or str(value)
 
 
 def _pick_transport(config: ProbeConfig) -> Transport:
@@ -114,16 +119,32 @@ async def connect(config: ProbeConfig) -> tuple[MCPClient, ServerSurface]:
         session = await stack.enter_async_context(
             ClientSession(read, write, sampling_callback=sampling_cb, elicitation_callback=elicit_cb)
         )
-        init = await asyncio.wait_for(session.initialize(), timeout=config.stdio_timeout)
+        await asyncio.wait_for(session.initialize(), timeout=config.stdio_timeout)
+
+        # #22/#32: the stateless server/discover path is real in SDK v2 — probe it. A server
+        # that doesn't implement it → discover_ok=False (a *measured* signal now, not a crash;
+        # the grader turns that into a C10 nudge or C12 finding by revision). Best-effort.
+        discover_ok: bool | None = None
+        supported_versions: list[str] = []
+        capabilities = _dump(session.server_capabilities) or {}
+        try:
+            disc = await asyncio.wait_for(session.discover(), timeout=config.stdio_timeout)
+            discover_ok = True
+            supported_versions = list(getattr(disc, "supported_versions", []) or [])
+            if getattr(disc, "capabilities", None):
+                capabilities = _dump(disc.capabilities) or capabilities
+        except Exception:
+            discover_ok = False
 
         record = ConnectRecord(
             transport=transport,
-            protocol_version=getattr(init, "protocolVersion", "") or "",
+            protocol_version=_as_str(session.protocol_version) or "",
             framing_ok=True,
             legacy_handshake_ok=True,
-            stateless_discover_ok=None,  # no such method in the SDK; don't fabricate a probe
-            server_info=_dump(getattr(init, "serverInfo", {})) or {},
-            capabilities=_dump(getattr(init, "capabilities", {})) or {},
+            stateless_discover_ok=discover_ok,
+            server_info=_dump(session.server_info) or {},
+            capabilities=capabilities,
+            supported_versions=supported_versions,
         )
         surface = await _discover(session, record)
         # #32: stateless-conformance — is tools/list identical on a second fresh connection?
@@ -146,17 +167,17 @@ def _capture_callbacks(capture: CaptureLog):
         capture.used_sampling = True
         capture.sampling.append(
             SampledMessage(
-                system_prompt=getattr(params, "systemPrompt", "") or "",
+                system_prompt=getattr(params, "system_prompt", "") or "",
                 messages=[_dump(m) for m in getattr(params, "messages", []) or []],
-                include_context=getattr(params, "includeContext", None),
-                max_tokens=getattr(params, "maxTokens", None),
+                include_context=_as_str(getattr(params, "include_context", None)),
+                max_tokens=getattr(params, "max_tokens", None),
             )
         )
         return CreateMessageResult(
             role="assistant",
             content=TextContent(type="text", text="[mcp-quality probe] sampling not executed"),
             model="mcp-quality-probe",
-            stopReason="endTurn",
+            stop_reason="endTurn",
         )
 
     async def on_elicit(context: Any, params: Any) -> ElicitResult:
@@ -210,13 +231,13 @@ async def _open_streams(stack: AsyncExitStack, transport: Transport, config: Pro
         return streams[0], streams[1]
     headers = dict(getattr(config, "headers", {}) or {})
     if transport == "streamable-http":
-        # Non-deprecated client; yields (read, write, get_session_id). Auth headers ride on
-        # a passed httpx.AsyncClient (the new API's injection point).
+        # Non-deprecated client; auth headers ride on an SDK-built http client (v2's
+        # injection point — create_mcp_http_client returns the vendored client type).
         http_client = None
         if headers:
-            import httpx
+            from mcp.client.streamable_http import create_mcp_http_client
 
-            http_client = await stack.enter_async_context(httpx.AsyncClient(headers=headers))
+            http_client = await stack.enter_async_context(create_mcp_http_client(headers=headers))
         streams = await stack.enter_async_context(
             streamable_http_client(config.target, http_client=http_client)
         )
