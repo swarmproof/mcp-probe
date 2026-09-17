@@ -6,10 +6,10 @@ grade. Deliberately "bad" (the sampling prompt carries a hidden directive) to ex
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import SamplingMessage, TextContent, ToolAnnotations
 
-mcp = FastMCP("spec-server")
+mcp = MCPServer("spec-server")
 
 
 @mcp.resource("data://greeting")

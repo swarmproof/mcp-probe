@@ -3,10 +3,10 @@
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-mcp = FastMCP("flaky-server")
+mcp = MCPServer("flaky-server")
 _state = {"n": 0}
 
 

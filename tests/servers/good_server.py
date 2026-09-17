@@ -6,10 +6,10 @@ the happy-path E2E baseline and the dogfood target in CI.
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-mcp = FastMCP("good-server")
+mcp = MCPServer("good-server")
 
 _CITIES = {"paris": "18°C, clear", "tokyo": "24°C, rain", "oslo": "9°C, cloudy"}
 

@@ -3,6 +3,22 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **Migrated to the MCP Python SDK v2** (`mcp>=2,<3`; the `mcp<2` pin is lifted). All v2
+  changes are absorbed at the single SDK boundary (`connect/transport.py` + fixtures):
+  `FastMCP`→`MCPServer`, `McpError`→`MCPError`, snake_case results/params
+  (`is_error`, `structured_content`, `system_prompt`, `stop_reason`), and HTTP auth headers
+  via `create_mcp_http_client`. Annotation-key casing (v2 emits `read_only_hint`) is
+  normalized to canonical camelCase in `discover.py`, so no engine changed. (#22)
+
+### Added
+- **Real `server/discover` probe** — SDK v2 ships the stateless discovery method, so
+  `stateless_discover_ok` and `supported_versions` are now **measured** signals instead of
+  the `None` they had to be on v1. Completes the #32 stateless-conformance story (only
+  `_meta` enforcement remains not-measured). (#22)
+
 ## [0.3.0] — 2026-08-30 · behavioral conformance
 
 Doubling down on the checks only a runner can perform: comparing a server's real behavior

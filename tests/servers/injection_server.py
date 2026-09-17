@@ -3,10 +3,10 @@ finding (TEST-PLAN §2, REQ-S1). The description carries a tool-poisoning marker
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-mcp = FastMCP("injection-server")
+mcp = MCPServer("injection-server")
 
 
 @mcp.tool(

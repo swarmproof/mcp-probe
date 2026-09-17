@@ -3,10 +3,10 @@ ADR-009). ``delete_record`` matches the write heuristic and carries destructiveH
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-mcp = FastMCP("writes-server")
+mcp = MCPServer("writes-server")
 _db = {"1": "alice", "2": "bob"}
 
 

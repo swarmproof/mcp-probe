@@ -20,6 +20,27 @@ from mcp_quality.models import (
     Transport,
 )
 
+# MCP annotation hints: SDK v1 (and the wire/dump format) use camelCase; SDK v2 emits
+# snake_case. We canonicalize to camelCase at this single boundary so every engine reads
+# one key set (ADR-003: normalize at the edge).
+_CANON_ANNOTATION = {
+    "read_only_hint": "readOnlyHint",
+    "destructive_hint": "destructiveHint",
+    "idempotent_hint": "idempotentHint",
+    "open_world_hint": "openWorldHint",
+}
+
+
+def _normalize_annotations(raw: dict[str, Any] | None) -> dict[str, Any]:
+    """camel/snake → canonical camelCase, dropping None values so an all-None hint block
+    (SDK v2 emits every hint as null) reads as 'no annotations declared' — which SC1 needs."""
+    out: dict[str, Any] = {}
+    for key, value in (raw or {}).items():
+        if value is None:
+            continue
+        out[_CANON_ANNOTATION.get(key, key)] = value
+    return out
+
 
 def _tool_from_raw(raw: dict[str, Any]) -> ToolDef:
     return ToolDef(
@@ -27,7 +48,7 @@ def _tool_from_raw(raw: dict[str, Any]) -> ToolDef:
         description=raw.get("description"),
         input_schema=raw.get("inputSchema") or raw.get("input_schema") or {},
         output_schema=raw.get("outputSchema") or raw.get("output_schema"),
-        annotations=raw.get("annotations") or {},
+        annotations=_normalize_annotations(raw.get("annotations")),
         title=raw.get("title"),
     )
 
