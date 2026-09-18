@@ -46,8 +46,9 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ## 📍 Where we are now
 
-- **Live on PyPI** (`mcp-quality 0.3.0`), published via trusted publishing — the v0.3
-  behavioral-conformance milestone.
+- **Live on PyPI** (`mcp-quality 0.4.0`), published via trusted publishing — the v0.3
+  behavioral-conformance milestone, now on the **MCP SDK v2** (the `mcp<2` pin is lifted,
+  and the real `server/discover` stateless probe is live).
 - **Six scored families** (Contract · Cost · Legibility · Performance · Security-lite ·
   Safety-Contract) plus an **experimental** spec-surface family, all behind one rubric.
 - **Green CI** across Python 3.11/3.12 — 219 tests (unit · component · integration · E2E

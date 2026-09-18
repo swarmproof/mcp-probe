@@ -3,7 +3,7 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] — 2026-09-17 · SDK v2
 
 ### Changed
 - **Migrated to the MCP Python SDK v2** (`mcp>=2,<3`; the `mcp<2` pin is lifted). All v2
@@ -114,5 +114,6 @@ Also included (planned as the "v0.2" milestone, shipped in this first release):
   (OWASP MCP Top 10 mapping; why the `2026-07-28` stateless `server/discover` path is not
   yet implemented; the offline-token estimate).
 
+[0.4.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.4.0
 [0.3.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.3.0
 [0.1.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.1.0
