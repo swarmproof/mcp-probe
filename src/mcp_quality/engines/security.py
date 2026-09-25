@@ -16,6 +16,7 @@ from mcp_quality.security.adapters import (
     dedup_findings,
     suppress_false_positives,
 )
+from mcp_quality.security.authz import auth_block, scan_authorization
 from mcp_quality.security.patterns import (
     scan_dangerous_capabilities,
     scan_injection,
@@ -36,6 +37,7 @@ class SecurityEngine(EngineBase):
         findings += scan_injection(ctx.surface)  # S1 → LLM01
         findings += scan_secrets(ctx.surface)  # S2 → LLM02
         findings += scan_dangerous_capabilities(ctx.surface)  # S3 → LLM06
+        findings += scan_authorization(ctx.surface)  # A1/A2/A3 → MCP07 (#48)
 
         deep_notes: dict[str, str] = {}
         if getattr(ctx.config, "deep_security", False):
@@ -57,6 +59,10 @@ class SecurityEngine(EngineBase):
                 by_owasp[f.owasp_id] = by_owasp.get(f.owasp_id, 0) + 1
 
         deep_status = deep_notes if getattr(ctx.config, "deep_security", False) else "not measured"
+        # #48: authz is graded only when the server advertises authorization metadata —
+        # otherwise it's not measured (a stdio server with no OAuth isn't punished, ADR-006).
+        authz_measured = auth_block(ctx.surface) is not None
+        authz_status = "measured" if authz_measured else "not measured (no auth metadata)"
         return FamilyScore(
             family=self.name,
             score=score,
@@ -67,6 +73,7 @@ class SecurityEngine(EngineBase):
                 "findings": len(findings),
                 "by_owasp": by_owasp,
                 "deep_security": deep_status,
+                "authz": authz_status,
             },
         )
 
