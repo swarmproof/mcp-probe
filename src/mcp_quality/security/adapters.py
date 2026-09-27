@@ -196,21 +196,29 @@ def suppress_false_positives(findings: list[Finding], *, min_confidence: float =
 
 
 def dedup_findings(findings: list[Finding]) -> list[Finding]:
-    """Merge duplicates on (owasp_id, tool), preferring the higher-fidelity source
-    (external scanners over builtin) and the higher severity (REQ-S5). Findings without a
-    meaningful (owasp_id, tool) key are never merged — they pass through untouched."""
+    """Reconcile findings on (owasp_id, tool), across sources (REQ-S5).
+
+    The job is to suppress a builtin finding when a higher-fidelity external scanner reports
+    the *same* issue — so when a group spans more than one source, we keep the single highest
+    (severity, fidelity) finding. Within a *single* source, distinct codes are distinct issues
+    (e.g. authz A1/A2/A3 all sit under MCP07 with no tool) and are kept; only exact-duplicate
+    codes collapse. Findings without an owasp_id pass through untouched."""
     fidelity = {"builtin": 0, "mcp-xray": 1, "cisco": 2, "mcp-scan": 3}
-    best: dict[tuple[str, str | None], Finding] = {}
     passthrough: list[Finding] = []
+    groups: dict[tuple[str, str | None], list[Finding]] = {}
     for f in findings:
         if f.owasp_id is None:
             passthrough.append(f)
             continue
-        key = (f.owasp_id, f.tool)
-        cur = best.get(key)
-        if cur is None or (f.severity, fidelity.get(f.source, 0)) > (
-            cur.severity,
-            fidelity.get(cur.source, 0),
-        ):
-            best[key] = f
-    return [*best.values(), *passthrough]
+        groups.setdefault((f.owasp_id, f.tool), []).append(f)
+
+    result: list[Finding] = []
+    for group in groups.values():
+        if len({f.source for f in group}) > 1:  # cross-source → one issue, best wins
+            result.append(max(group, key=lambda f: (f.severity, fidelity.get(f.source, 0))))
+        else:  # single source → keep distinct codes, drop exact-duplicate codes
+            seen: dict[str, Finding] = {}
+            for f in group:
+                seen.setdefault(f.code, f)
+            result.extend(seen.values())
+    return [*result, *passthrough]
