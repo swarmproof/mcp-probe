@@ -1,5 +1,5 @@
-"""Spec-surface engine ``[net]`` ``⊕ experimental`` (#33) — checks the capabilities *beyond
-tools*: sampling, elicitation, resources.
+"""Spec-surface engine ``[net]`` ``⊕ experimental`` (#33, #49) — checks the capabilities
+*beyond tools*: sampling, elicitation, resources, and long-running tasks.
 
 Servers can talk back — ``sampling/createMessage`` (run something on the client's LLM),
 ``elicitation/create`` (ask the user for input), and advertised resources. These are where
@@ -24,6 +24,11 @@ from mcp_quality.connect.capture import CaptureLog
 from mcp_quality.contract.schema import synthesize_args
 from mcp_quality.engines.base import EngineBase, penalty_score
 from mcp_quality.engines.contract import _is_write
+from mcp_quality.engines.tasks_checks import (
+    grade_task_lifecycle,
+    grade_tasks_declaration,
+    tasks_capability,
+)
 from mcp_quality.models import FamilyScore, Finding, ProbeContext, Severity
 from mcp_quality.security.patterns import _INJECTION_PATTERNS, OWASP
 
@@ -55,12 +60,15 @@ class SpecSurfaceEngine(EngineBase):
         s_findings, measured["sampling"], s_metrics = self._grade_sampling(cap)
         r_findings, measured["resources"], r_metrics = await self._grade_resources(ctx)
         e_findings, measured["elicitation"] = self._grade_elicitation(cap)
-        findings += s_findings + r_findings + e_findings
+        t_findings, measured["tasks"], t_metrics = await self._grade_tasks(ctx)
+        findings += s_findings + r_findings + e_findings + t_findings
         metrics.update(s_metrics)
         metrics.update(r_metrics)
+        metrics.update(t_metrics)
 
         if not any(measured.values()):
-            return self.not_measured("no spec-surface capability exercised (sampling/resources/elicitation)")
+            reason = "no spec-surface capability exercised (sampling/resources/elicitation/tasks)"
+            return self.not_measured(reason)
 
         from mcp_quality.scoring import grade_for_score
 
@@ -130,6 +138,34 @@ class SpecSurfaceEngine(EngineBase):
         ) for r in unresolved]
         metrics = {"resources_checked": len(uris), "resources_unresolved": len(unresolved)}
         return findings, True, metrics
+
+    async def _grade_tasks(self, ctx: ProbeContext) -> tuple[list[Finding], bool, dict[str, Any]]:
+        """Grade the long-running Tasks capability (#49): static declaration conformance, then
+        a best-effort live lifecycle drive of read-only tools (create → terminal → cancel).
+        Not measured when the server declares no tasks capability."""
+        assert ctx.client is not None
+        caps = tasks_capability(ctx.surface)
+        if caps is None:
+            return [], False, {}
+        findings = grade_tasks_declaration(caps)
+
+        seed = getattr(ctx.config, "seed", 42)
+        allow_writes = getattr(ctx.config, "allow_writes", False)
+        # never drive destructive long-running work (ADR-009)
+        safe = [t for t in ctx.surface.tools if not (_is_write(t) and not allow_writes)]
+        observations = []
+        for tool in safe:  # let each run to a terminal state (T1/T3/handle)
+            obs = await ctx.client.drive_task(tool.name, synthesize_args(tool.input_schema, seed=seed))
+            if obs is not None:
+                observations.append(obs)
+        if safe:  # one cancellation probe (T2)
+            t0 = safe[0]
+            t0_args = synthesize_args(t0.input_schema, seed=seed)
+            obs = await ctx.client.drive_task(t0.name, t0_args, cancel=True)
+            if obs is not None:
+                observations.append(obs)
+        findings += grade_task_lifecycle(observations)
+        return findings, True, {"tasks_lifecycles_driven": len(observations)}
 
     def _grade_elicitation(self, cap: CaptureLog) -> tuple[list[Finding], bool]:
         if not cap.used_elicitation:

@@ -11,6 +11,7 @@ from mcp_quality.connect.capture import (
     ElicitedRequest,
     ResourceResolution,
     SampledMessage,
+    TaskObservation,
 )
 from mcp_quality.connect.client import (
     ConnectRecord,
@@ -33,6 +34,7 @@ __all__ = [
     "MCPClientProtocol",
     "ResourceResolution",
     "SampledMessage",
+    "TaskObservation",
     "surface_from_dump",
     "surface_from_payload",
     "surface_from_tools",

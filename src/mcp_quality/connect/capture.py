@@ -56,6 +56,21 @@ class ResourceResolution:
 
 
 @dataclass
+class TaskObservation:
+    """Normalized result of driving one long-running task through its lifecycle (#49).
+
+    SDK-free so the engine grades it and ``FakeClient`` can script it. ``statuses`` is the
+    ordered sequence observed (``working`` → … → a terminal state)."""
+
+    task_id: str = ""
+    statuses: list[str] = field(default_factory=list)
+    reached_terminal: bool = False  # ended in completed/failed/cancelled within the poll bound
+    cancel_requested: bool = False
+    cancelled: bool = False  # the cancel request actually moved it to 'cancelled'
+    still_active_after_end: bool = False  # orphan: still 'working' after a terminal/cancel
+
+
+@dataclass
 class CaptureLog:
     """Everything the harness observed during a run. Empty lists + False flags = the
     capability was never exercised → engines report those sub-checks 'not measured'."""
