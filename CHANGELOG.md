@@ -3,6 +3,33 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.5.0] — 2026-10-06 · scale, trust & ecosystem
+
+The v0.4 milestone: deepen trust (authz, tasks, consensus), scale the runner (distributed
+load), and open the ecosystem (registry integration).
+
+### Added
+- **Authorization least-privilege** `[fast]` `[static-ok]` — grades advertised OAuth
+  metadata under Security-lite (OWASP MCP07): `A1-scope-overgrant` (wildcard/admin scopes,
+  or a write scope on a read-only tool set), `A2-audience-hygiene` (issuer without a resource
+  indicator, or a wildcard audience), `A3-insecure-authz` (non-HTTPS auth). Not measured when
+  a server declares no authorization. (#48)
+- **Tasks-lifecycle conformance** `[net]` `⊕ experimental` — in the spec-surface family:
+  static declaration conformance (`T2-cancel-undeclared`) plus a harness-driven lifecycle
+  grader (`T1-no-terminal-state`, `T2-cancel-ignored`, `T3-orphaned-task`, `T4-weak-task-handle`).
+  Not measured when no tasks capability is declared. (#49)
+- **Multi-model consensus** `[llm]` — `--models a,b,c` runs the comprehension probe across a
+  panel and reports inter-model agreement; `L7-model-disagreement` fires when the panel splits
+  on tool choice for a material fraction of goals. Non-canonical unless a pinned canonical
+  model is included; cached per model (rerun invokes models zero times). Opt-in and additive. (#50)
+- **Distributed load** `[net]` — `--distributed N` fans the concurrency curve across N
+  concurrent workers for a fleet-wide percentile picture (pooled latencies, summed stable
+  concurrency), surfacing ceilings a single load loop can't reach. Single-host unchanged. (#51)
+- **Registry / marketplace integration** — `mcp-quality serve` gains `POST /score/batch`
+  (ingest many servers) and `POST /freshness` (flag a stored grade as stale on rubric or
+  surface drift); scores stay provenance-verifiable across releases. Worked GitHub Action +
+  webhook example in `docs/registry-integration.md`. (#52)
+
 ## [0.4.0] — 2026-09-17 · SDK v2
 
 ### Changed
@@ -114,6 +141,7 @@ Also included (planned as the "v0.2" milestone, shipped in this first release):
   (OWASP MCP Top 10 mapping; why the `2026-07-28` stateless `server/discover` path is not
   yet implemented; the offline-token estimate).
 
+[0.5.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.5.0
 [0.4.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.4.0
 [0.3.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.3.0
 [0.1.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.1.0
