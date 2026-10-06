@@ -118,6 +118,35 @@ async def test_e2e_spec_surface_experimental_captures_sampling():
     assert outcome.report.hard_gate != "spec"
 
 
+async def test_e2e_authz_graded_via_static_dump(tmp_path):
+    # #48: authz has no spawnable fixture (no MCPServer declares OAuth metadata), so its
+    # real end-to-end path is offline `static` mode over a dump — exercise it through a file.
+    import json
+    dump = tmp_path / "authz.mcp.json"
+    dump.write_text(json.dumps({
+        "capabilities": {"authorization": {"scopes": ["*"], "issuer": "http://auth.example"}},
+        "tools": [{"name": "get_x", "description": "Return x.", "inputSchema": {"type": "object"},
+                   "annotations": {"readOnlyHint": True}}],
+    }))
+    cfg = ProbeConfig(static_path=str(dump), families=("security",))
+    outcome = await run_probe(cfg)
+    sec = outcome.report.families["security"]
+    assert sec.metrics["authz"] == "measured"
+    assert any(f.code.startswith("A") and f.owasp_id == "MCP07:2025" for f in sec.findings)
+
+
+async def test_e2e_distributed_load_on_good_server():
+    # #51: --distributed fans the curve across a worker fleet against a real spawned server;
+    # the fleet metrics and the percentile-ordering invariant must hold end-to-end.
+    cfg = ProbeConfig(target=_target("good_server.py"), families=("performance",),
+                      concurrency=4, distributed=3)
+    outcome = await run_probe(cfg)
+    m = outcome.report.families["performance"].metrics
+    assert m["workers"] == 3 and len(m["per_worker"]) == 3
+    assert m["requested_concurrency"] == 12  # concurrency × workers
+    assert m["p50_ms"] <= m["p95_ms"] <= m["p99_ms"]  # invariant, never absolute ms
+
+
 async def test_e2e_7_static_mode_not_measured():
     dump = SERVERS / "dump.mcp.json"
     cfg = ProbeConfig(static_path=str(dump), families=("contract", "cost"))
