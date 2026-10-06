@@ -73,6 +73,9 @@ class ProbeConfig:
     # --- performance ([net]) ---
     concurrency: int = 50
     load_duration: float = 10.0  # seconds of sustained hold for leak detection
+    # Fan load across N concurrent workers for a fleet-wide percentile picture (#51).
+    # 0/1 → single-host (default, unchanged).
+    distributed: int = 0
 
     # --- security ---
     deep_security: bool = False  # shell out to mcp-scan / Cisco (REQ-S4)

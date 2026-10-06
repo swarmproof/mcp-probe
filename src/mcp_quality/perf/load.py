@@ -88,10 +88,29 @@ class LoadResult:
     crashed: bool = False
     connection_samples: list[int] = field(default_factory=list)
     max_stable_concurrency: int = 0
+    workers: int = 1  # 1 = single-host; >1 after a distributed aggregate (#51)
 
     @property
     def error_rate(self) -> float:
         return self.errors / self.total if self.total else 0.0
+
+
+def aggregate_results(results: list[LoadResult]) -> LoadResult:
+    """Merge per-worker results into one fleet-wide picture (#51): latencies pooled into a
+    single distribution, errors/calls summed, crash = any worker crashed, and max stable
+    concurrency summed (total concurrent load the fleet sustained). Connection samples are
+    summed per stage (workers run the same curve, so stage counts align)."""
+    agg = LoadResult(workers=len(results))
+    for r in results:
+        agg.latencies_ms.extend(r.latencies_ms)
+        agg.errors += r.errors
+        agg.total += r.total
+        agg.crashed = agg.crashed or r.crashed
+        agg.max_stable_concurrency += r.max_stable_concurrency
+    if results:
+        n = min(len(r.connection_samples) for r in results)
+        agg.connection_samples = [sum(r.connection_samples[i] for r in results) for i in range(n)]
+    return agg
 
 
 async def _one_call(factory: ClientFactory, tool: str, args: dict[str, Any]) -> tuple[float, bool]:
@@ -147,3 +166,24 @@ async def run_load(
             result.crashed = True
     result.max_stable_concurrency = max_stable
     return result
+
+
+async def run_distributed_load(
+    factory: ClientFactory,
+    tool: str,
+    args: dict[str, Any],
+    curve: ConcurrencyCurve,
+    *,
+    workers: int,
+    error_threshold: float = 0.5,
+) -> tuple[LoadResult, list[LoadResult]]:
+    """Fan the curve across ``workers`` concurrent load loops against one target, each with
+    its own connections (a Scheduler over the worker fleet — concurrency-core shape). Returns
+    (aggregated fleet result, per-worker results). The fleet drives ``workers × curve``
+    concurrent calls, so it surfaces ceilings a single load loop can't reach (#51)."""
+    runs = [
+        run_load(factory, tool, args, curve, error_threshold=error_threshold)
+        for _ in range(workers)
+    ]
+    per_worker = await asyncio.gather(*runs)
+    return aggregate_results(list(per_worker)), list(per_worker)
