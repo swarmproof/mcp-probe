@@ -5,8 +5,9 @@ are**, and **what's next**.
 
 The through-line: mcp-quality *executes* a server and checks what it **actually does**
 against what its metadata **claims** — error handling, runtime cost, annotation honesty,
-version stability, tool selection, spec conformance. That behavioral lane — **v0.3** — is
-now complete on `main`; v0.4 pushes it into multi-model and scale.
+version stability, tool selection, spec conformance. The behavioral lane (**v0.3**) and the
+scale/trust/ecosystem lane (**v0.4**) are both shipped; what's left is cross-host scale and
+a few probes gated on evolving SDK/spec support.
 
 ---
 
@@ -46,12 +47,11 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ## 📍 Where we are now
 
-- **Live on PyPI** (`mcp-quality 0.4.0`), published via trusted publishing — the v0.3
-  behavioral-conformance milestone, now on the **MCP SDK v2** (the `mcp<2` pin is lifted,
-  and the real `server/discover` stateless probe is live).
+- **Live on PyPI** (`mcp-quality 0.5.0`), published via trusted publishing — the v0.4
+  milestone (authz, tasks, consensus, distributed load, registry) on **MCP SDK v2**.
 - **Six scored families** (Contract · Cost · Legibility · Performance · Security-lite ·
   Safety-Contract) plus an **experimental** spec-surface family, all behind one rubric.
-- **Green CI** across Python 3.11/3.12 — 219 tests (unit · component · integration · E2E
+- **Green CI** across Python 3.11/3.12/3.13 — 266 tests (unit · component · integration · E2E
   over stdio + HTTP/SSE), plus opt-in `live_llm` and `deep_security` suites.
 - **Validated end-to-end against real servers** — a public [leaderboard](./docs/leaderboard.md)
   of reference MCP servers, and a live authenticated production run.
@@ -91,17 +91,28 @@ contract. All merged. ([milestone](https://github.com/swarmproof/mcp-probe/miles
 
 ---
 
-## 🔜 Next — v0.4
+## ✅ Shipped — v0.4: scale, trust & ecosystem (`0.5.0`)
 
-- **Authorization least-privilege** — declared OAuth scopes minimal for the tool set;
-  issuer / resource-indicator hygiene. *(deferred candidate from #33)*
-- **Tasks lifecycle** — long-running ops reach terminal states, honor cancellation, don't
-  orphan. *(deferred candidate from #33)*
-- **Multi-model consensus legibility** — corroborate the comprehension probe across models
-  to cut single-model bias; report agreement as a confidence signal.
-- **Distributed load** — scale the Performance driver beyond one host for realistic
-  concurrency ceilings.
-- **Marketplace / registry partnerships** — built on the `mcp-quality serve` scoring API.
+- **Authorization least-privilege** — grades advertised OAuth metadata (OWASP MCP07):
+  `A1` scope over-grant, `A2` audience hygiene, `A3` non-HTTPS auth. [#48]
+- **Tasks lifecycle** — long-running tasks reach terminal states, honor cancellation, don't
+  orphan (`T1`–`T4`), on the spec-surface harness. [#49]
+- **Multi-model consensus legibility** — `--models a,b,c` reports inter-model agreement;
+  `L7-model-disagreement` is a stronger ambiguity signal than one model's confusion. [#50]
+- **Distributed load** — `--distributed N` fans the curve across a worker fleet for a
+  fleet-wide percentile picture. [#51]
+- **Registry / marketplace integration** — batch scoring + a freshness/staleness check on
+  the `mcp-quality serve` API, with a worked GitHub Action + webhook. [#52]
+
+---
+
+## 🔭 Later
+
+- **Cross-host distributed load** — a real multi-machine coordinator on top of the fleet
+  aggregation layer (#51 built the in-process harness).
+- **Live tasks probe** — activates the tasks lifecycle drive once the SDK's high-level
+  server can emit tasks (#49 built the grader + harness).
+- **`_meta` enforcement probe** — the last not-measured stateless signal (#32/#22).
 
 ---
 
