@@ -15,8 +15,9 @@ from __future__ import annotations
 
 from mcp_quality.engines.base import EngineBase, clamp
 from mcp_quality.legibility.cache import LegibilityCache, cache_key
+from mcp_quality.legibility.consensus import consensus_report
 from mcp_quality.legibility.lints import lint_descriptions
-from mcp_quality.legibility.model import ModelProvider
+from mcp_quality.legibility.model import ModelProvider, build_model
 from mcp_quality.legibility.similarity import confusable_shortlist
 from mcp_quality.models import FamilyScore, Finding, ProbeContext, ServerSurface, Severity
 
@@ -69,15 +70,21 @@ class LegibilityEngine(EngineBase):
     requires_llm = True
     deterministic = False  # model sampling varies across seeds → reliability overlay reruns it
 
-    def __init__(self, model: ModelProvider | None = None) -> None:
+    def __init__(
+        self, model: ModelProvider | None = None, panel: list[ModelProvider] | None = None
+    ) -> None:
         self._model = model
+        self._panel = panel
 
     async def run(self, ctx: ProbeContext) -> FamilyScore:
         lints = lint_descriptions(ctx.surface)
         lint_penalty = min(30, sum(_LINT_PENALTY.get(f.severity, 0) for f in lints))
         shortlist = confusable_shortlist(ctx.surface)
 
-        model = self._model or ctx.model
+        panel = self._resolve_panel(ctx)
+        # The primary (scored) model is the configured one, or the first panel member when
+        # only a consensus panel was given.
+        model = self._model or ctx.model or (panel[0] if panel else None)
         if model is None:
             # No model → behavioural part not measured; score from lints only (honest).
             score = clamp(100 - lint_penalty)
@@ -137,10 +144,63 @@ class LegibilityEngine(EngineBase):
             "tool_order": probe.get("tool_order"),
             "per_tool_total": probe.get("per_tool_total"),
         }
+
+        # #50: multi-model consensus — additive and opt-in (only when a panel > 1 is set).
+        if len(panel) > 1:
+            report = self._run_consensus(ctx, panel)
+            metrics["consensus"] = report
+            # L7 fires only when disagreement is material (signal-not-noise).
+            if report["disagreement_rate"] >= 0.25 and report["divergent_goals"]:
+                worst = report["divergent_goals"][0]
+                findings.append(
+                    Finding(
+                        family=self.name, code="L7-model-disagreement", severity=Severity.MEDIUM,
+                        message=f"{len(panel)} models disagreed on tool choice for "
+                        f"{report['disagreement_rate']:.0%} of goals (mean agreement "
+                        f"{report['mean_agreement']:.0%}) — a genuine-ambiguity signal",
+                        remediation="disambiguate the descriptions for the divergent goals below",
+                        evidence={"worst_goal": worst["goal"], "picks": worst["picks"],
+                                  "models": report["models"]},
+                    )
+                )
+
         return FamilyScore(
             family=self.name, score=score, grade=grade_for_score(score),
             findings=findings, metrics=metrics,
         )
+
+    # -- consensus (#50) ------------------------------------------------------
+
+    def _resolve_panel(self, ctx: ProbeContext) -> list[ModelProvider]:
+        """The consensus panel: injected models (tests) or built from ``config.models``."""
+        if self._panel is not None:
+            return self._panel
+        specs = getattr(ctx.config, "models", ()) or ()
+        built = [build_model(s, seed=getattr(ctx.config, "seed", 42)) for s in specs]
+        return [m for m in built if m is not None]
+
+    def _run_consensus(self, ctx: ProbeContext, panel: list[ModelProvider]) -> dict:
+        picks_per_model = [self._panel_picks(ctx, m) for m in panel]
+        goals = build_goals(ctx.surface)
+        report = consensus_report([m.model_id for m in panel], picks_per_model, goals)
+        # Non-canonical unless a pinned canonical model is in the panel (ADR-004).
+        report["canonical"] = any(m.is_canonical for m in panel)
+        return report
+
+    def _panel_picks(self, ctx: ProbeContext, model: ModelProvider) -> list[str]:
+        """One model's per-goal picks, cached per (surface, model, seed, goal_set) so reruns
+        invoke the model zero times (REQ-L6). Selection-only — panel members never generate
+        rewrites (that's the primary model's job)."""
+        gsv = getattr(ctx.config, "goal_set_version", "1")
+        key = cache_key(ctx.surface.surface_hash, model.model_id, model.seed, f"{gsv}|picks")
+        cache = LegibilityCache(getattr(ctx.config, "cache_dir", ".mcp-quality/cache"))
+        cached = cache.get(key)
+        if cached is not None:
+            return list(cached["goal_picks"])
+        tool_pairs = [(t.name, t.description or "") for t in ctx.surface.tools]
+        picks = [model.choose_tool(g, tool_pairs) for g, _ in build_goals(ctx.surface)]
+        cache.put(key, {"goal_picks": picks})
+        return picks
 
     def _run_or_cache(self, ctx: ProbeContext, model: ModelProvider) -> dict:
         gsv = getattr(ctx.config, "goal_set_version", "1")

@@ -106,6 +106,8 @@ def _add_family_flags(sp: argparse.ArgumentParser) -> None:
                     help="add experimental spec-surface checks (sampling/resources/elicitation)")
     sp.add_argument("--deep-security", action="store_true", help="shell out to mcp-scan / Cisco")
     sp.add_argument("--model", default=None, help="legibility model, e.g. 'ollama:qwen2.5-3b'")
+    sp.add_argument("--models", default=None, metavar="A,B,C",
+                    help="consensus panel: run legibility across these models, report agreement")
     sp.add_argument(
         "--token-model",
         default=None,
@@ -155,6 +157,7 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
         "deep_security": _true_or_none(getattr(args, "deep_security", False)),
         "experimental": _true_or_none(getattr(args, "experimental", False)),
         "model": getattr(args, "model", None),
+        "models": _parse_models(getattr(args, "models", None)),
         "token_model": getattr(args, "token_model", None),
         "response_bloat": _true_or_none(getattr(args, "response_bloat", False)),
         "seed": getattr(args, "seed", None),
@@ -172,6 +175,14 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
 def _true_or_none(flag: bool) -> bool | None:
     """Store-true flags default False; treat False as 'unset' so config/env can win."""
     return True if flag else None
+
+
+def _parse_models(raw: str | None) -> tuple[str, ...] | None:
+    """Parse ``--models a,b,c`` into a tuple (None if unset → don't override)."""
+    if not raw:
+        return None
+    specs = tuple(s.strip() for s in raw.split(",") if s.strip())
+    return specs or None
 
 
 def _parse_headers(raw: list[str] | None) -> dict[str, str] | None:

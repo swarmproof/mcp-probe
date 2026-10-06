@@ -53,6 +53,9 @@ class ProbeConfig:
 
     # --- legibility ([llm]) ---
     model: str | None = None  # e.g. "ollama:qwen2.5-3b", "anthropic:claude-haiku-4-5"
+    # Opt-in consensus panel (#50): run the comprehension probe across each and report
+    # inter-model agreement. Empty → single-model behaviour, unchanged.
+    models: tuple[str, ...] = ()
     seed: int = 42
     goal_set_version: str = "1"
     goals_path: str | None = None  # .mcp-quality/goals.yaml

@@ -223,6 +223,9 @@ def _family_headline(name: str, metrics: dict[str, Any]) -> str:
         if metrics.get("top_confusion"):
             a, b, r = metrics["top_confusion"]
             headline += f"; {a}⇄{b} {r:.0%}"
+        consensus = metrics.get("consensus")
+        if consensus:
+            headline += f"; {consensus['mean_agreement']:.0%} model agreement"
         return headline
     if name == "performance" and "p95_ms" in metrics:
         return f"p95 {metrics['p95_ms']}ms; degradation {metrics.get('degradation', '?')}"
