@@ -32,6 +32,7 @@ from mcp_quality.connect.capture import (
     ElicitedRequest,
     ResourceResolution,
     SampledMessage,
+    TaskObservation,
 )
 from mcp_quality.connect.client import ConnectRecord, InvokeResult
 from mcp_quality.connect.discover import surface_from_tools
@@ -61,6 +62,16 @@ class MCPClient:
             return ResourceResolution(uri=uri, ok=ok, error=None if ok else "empty contents")
         except Exception as exc:
             return ResourceResolution(uri=uri, ok=False, error=str(exc))
+
+    async def drive_task(
+        self, tool: str, args: dict[str, Any], *, cancel: bool = False
+    ) -> TaskObservation | None:
+        """Drive one long-running task through its lifecycle (#49) — create, poll to a
+        terminal state, optionally cancel. Returns None when the server can't be driven as a
+        task (the common case today: the SDK's high-level MCPServer can't emit tasks yet, so
+        the runtime lifecycle is reported *not measured* while the declared tasks capability
+        is still graded statically). This is the integration point for when task servers land."""
+        return None
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> InvokeResult:
         # A JSON-RPC error (MCPError) is a *clean* protocol response, not a crash — normalize

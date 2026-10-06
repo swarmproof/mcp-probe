@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from mcp_quality.connect.capture import CaptureLog, ResourceResolution
+from mcp_quality.connect.capture import CaptureLog, ResourceResolution, TaskObservation
 
 
 @dataclass
@@ -56,6 +56,10 @@ class MCPClientProtocol(Protocol):
 
     async def read_resource(self, uri: str) -> ResourceResolution: ...
 
+    async def drive_task(
+        self, tool: str, args: dict[str, Any], *, cancel: bool = False
+    ) -> TaskObservation | None: ...
+
     async def close(self) -> None: ...
 
 
@@ -73,6 +77,7 @@ class FakeClient:
         connect_record: ConnectRecord | None = None,
         capture: CaptureLog | None = None,
         resources: dict[str, ResourceResolution] | None = None,
+        tasks: dict[str, TaskObservation] | None = None,
     ) -> None:
         self._results = results or {}
         self.connect_record = connect_record or ConnectRecord(
@@ -82,6 +87,7 @@ class FakeClient:
         )
         self.capture = capture or CaptureLog()
         self._resources = resources or {}
+        self._tasks = tasks or {}
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> InvokeResult:
@@ -102,6 +108,17 @@ class FakeClient:
         if spec is not None:
             return spec
         return ResourceResolution(uri=uri, ok=True)
+
+    async def drive_task(
+        self, tool: str, args: dict[str, Any], *, cancel: bool = False
+    ) -> TaskObservation | None:
+        import dataclasses
+
+        obs = self._tasks.get(tool)
+        if obs is None:
+            return None
+        # return an independent copy so the two drives (normal + cancel) don't alias/mutate
+        return dataclasses.replace(obs, cancel_requested=obs.cancel_requested or cancel)
 
     async def close(self) -> None:
         return None
