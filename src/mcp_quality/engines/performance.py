@@ -5,6 +5,8 @@ uniform MCP-client tasks issuing real ``call_tool`` over persistent connections 
 naive HTTP load tools (k6) can't fill. Reports p50/p95/p99, max stable concurrency, a
 degradation grade, and connection-leak detection. Live-only: reported "not measured" in
 static mode (ADR-006). Read-only: it drives a read-only tool, never a destructive one.
+With ``--distributed N`` the curve is fanned across N concurrent workers for a fleet-wide
+percentile picture that a single load loop can't reach (#51); 0/1 → single-host, unchanged.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from mcp_quality.perf.load import (
     classify_degradation,
     detect_leak,
     percentile,
+    run_distributed_load,
     run_load,
 )
 
@@ -59,7 +62,17 @@ class PerformanceEngine(EngineBase):
         curve = ConcurrencyCurve(ramp_to=concurrency, ramp_steps=4, hold_iterations=3)
         factory = self._factory or self._default_factory(ctx)
 
-        result = await run_load(factory, tool.name, args, curve)
+        # #51: fan across N workers for a fleet-wide picture; 0/1 → single-host (unchanged).
+        workers = int(getattr(ctx.config, "distributed", 0) or 0)
+        per_worker: list[Any] | None = None
+        if workers > 1:
+            result, per_worker = await run_distributed_load(
+                factory, tool.name, args, curve, workers=workers
+            )
+            effective_concurrency = concurrency * workers
+        else:
+            result = await run_load(factory, tool.name, args, curve)
+            effective_concurrency = concurrency
 
         p50 = percentile(result.latencies_ms, 50)
         p95 = percentile(result.latencies_ms, 95)
@@ -70,28 +83,36 @@ class PerformanceEngine(EngineBase):
         )
         leak = detect_leak(result.connection_samples) and result.error_rate > 0.1
 
-        findings = self._findings(tool.name, degradation, leak, result, concurrency)
-        score = self._score(p95, degradation, leak, result, concurrency)
+        findings = self._findings(tool.name, degradation, leak, result, effective_concurrency)
+        score = self._score(p95, degradation, leak, result, effective_concurrency)
 
         from mcp_quality.scoring import grade_for_score
 
+        metrics: dict[str, Any] = {
+            "tool": tool.name,
+            "p50_ms": round(p50, 1),
+            "p95_ms": round(p95, 1),
+            "p99_ms": round(p99, 1),
+            "max_concurrency": result.max_stable_concurrency,
+            "requested_concurrency": effective_concurrency,
+            "error_rate": round(result.error_rate, 3),
+            "degradation": degradation,
+            "leak": leak,
+            "calls": result.total,
+            "workers": workers if workers > 1 else 1,
+        }
+        if per_worker is not None:
+            metrics["per_worker"] = [
+                {"max_stable": w.max_stable_concurrency, "error_rate": round(w.error_rate, 3),
+                 "p95_ms": round(percentile(w.latencies_ms, 95), 1)}
+                for w in per_worker
+            ]
         return FamilyScore(
             family=self.name,
             score=score,
             grade=grade_for_score(score),
             findings=findings,
-            metrics={
-                "tool": tool.name,
-                "p50_ms": round(p50, 1),
-                "p95_ms": round(p95, 1),
-                "p99_ms": round(p99, 1),
-                "max_concurrency": result.max_stable_concurrency,
-                "requested_concurrency": concurrency,
-                "error_rate": round(result.error_rate, 3),
-                "degradation": degradation,
-                "leak": leak,
-                "calls": result.total,
-            },
+            metrics=metrics,
         )
 
     def _default_factory(self, ctx: ProbeContext) -> Callable[[], Awaitable[Any]]:

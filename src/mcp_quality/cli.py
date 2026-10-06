@@ -116,6 +116,8 @@ def _add_family_flags(sp: argparse.ArgumentParser) -> None:
     )
     sp.add_argument("--seed", type=int, default=None)
     sp.add_argument("--concurrency", type=int, default=None)
+    sp.add_argument("--distributed", type=int, default=None, metavar="N",
+                    help="fan load across N concurrent workers for a fleet-wide percentile picture")
     sp.add_argument("--reliability", dest="reliability_k", type=int, default=None, metavar="K",
                     help="rerun nondeterministic families K times, report pass^k consistency")
     sp.add_argument("--response-bloat", action="store_true",
@@ -162,6 +164,7 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
         "response_bloat": _true_or_none(getattr(args, "response_bloat", False)),
         "seed": getattr(args, "seed", None),
         "concurrency": getattr(args, "concurrency", None),
+        "distributed": getattr(args, "distributed", None),
         "reliability_k": getattr(args, "reliability_k", None),
         "families": _families_from_args(args) if hasattr(args, "all_families") else None,
     }

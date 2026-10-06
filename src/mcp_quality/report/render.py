@@ -228,7 +228,10 @@ def _family_headline(name: str, metrics: dict[str, Any]) -> str:
             headline += f"; {consensus['mean_agreement']:.0%} model agreement"
         return headline
     if name == "performance" and "p95_ms" in metrics:
-        return f"p95 {metrics['p95_ms']}ms; degradation {metrics.get('degradation', '?')}"
+        head = f"p95 {metrics['p95_ms']}ms; degradation {metrics.get('degradation', '?')}"
+        if metrics.get("workers", 1) > 1:
+            head += f"; {metrics['workers']} workers"
+        return head
     if name == "contract":
         return metrics.get("summary", "")
     if name == "spec":
