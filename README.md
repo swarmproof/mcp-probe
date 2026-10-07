@@ -163,11 +163,30 @@ mcp-quality run against real public MCP servers ([full table](./docs/leaderboard
 | [agent-postmortems](https://github.com/swarmproof/agent-postmortems) | A structured incident database + post-mortem standard for agent failures |
 | [awesome-agent-reliability](https://github.com/swarmproof/awesome-agent-reliability) | The curated map of the field |
 
+## Boundaries
+
+Honest over impressive — what mcp-quality **doesn't** claim:
+
+- **Legibility needs a model.** Without `--model`, Legibility runs offline description lints
+  only and reports the comprehension probe as *not measured* (never a zero). Multi-model
+  consensus (`--models`) is opt-in.
+- **Some spec-surface checks degrade to "not measured"** until the ecosystem catches up: the
+  live **tasks** lifecycle drive is inert until the MCP SDK's high-level server can emit
+  tasks (the declared-capability check still runs), and stateless `_meta` enforcement isn't
+  probed yet. Absent capabilities are *not measured*, never scored as `0` (ADR-006).
+- **`--distributed` fans load across in-process workers**, not separate machines yet — a
+  real cross-host coordinator is on the roadmap.
+- **Security-lite is a floor, not a scanner.** It's one light check mapped to the OWASP MCP
+  Top 10; defer deep analysis to the specialists via `--deep-security`.
+- **Non-canonical scores are marked as such** — cloud/consensus model scores carry a flag;
+  the canonical scorer is a pinned local model at temp 0.
+
 ## Docs
 
 [Demo](./docs/demo.md) · [Leaderboard](./docs/leaderboard.md) · [Architecture](./docs/ARCHITECTURE.md) ·
 [Requirements (PRD)](./docs/PRD.md) · [Design decisions](./docs/DECISIONS.md) ·
-[Roadmap](./ROADMAP.md) · [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md)
+[Roadmap](./ROADMAP.md) · [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md) ·
+[Security](./SECURITY.md) · [Code of Conduct](./CODE_OF_CONDUCT.md)
 
 ## License
 
