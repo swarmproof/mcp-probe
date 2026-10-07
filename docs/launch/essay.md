@@ -1,7 +1,8 @@
 # Your MCP server has a quality score. I graded the popular ones to show you what it looks like.
 
-*Draft — Show HN / blog launch essay for mcp-quality. Lead with the leaderboard and the
-token number; not security (crowded) and not RPS (boring).*
+<!-- Launch essay for mcp-quality (Show HN / blog). Positioning: lead with the leaderboard
+     and the token number, then the two behavioral failures. Frame as quality & trust, not
+     security (crowded) and not RPS (boring). First-person builder voice. -->
 
 ---
 
@@ -10,10 +11,9 @@ the tools your agents actually depend on — get nothing. You ship a server, an 
 the wrong tool or burns 9,000 tokens just to *read* your tool list, and you find out in
 production, from a user, expensively.
 
-So I built **mcp-quality**: a CI quality suite that grades any MCP server across five
-dimensions into a single letter grade, gates your merge, and prints a badge. Then I
-pointed it at seven popular public servers. Here's what a quality score actually looks
-like.
+So I built **mcp-quality**: a CI quality suite that grades any MCP server across six check
+families into a single letter grade, gates your merge, and prints a badge. Then I pointed
+it at seven popular public servers. Here's what a quality score actually looks like.
 
 ## The leaderboard
 
@@ -32,7 +32,8 @@ Good news first: the official reference servers are **well built**. Lean tool su
 clear descriptions, no secrets, no injection surface. If you were expecting a wall of
 F's, that's not the honest result and I'm not going to fake it.
 
-But two things in that table should stop you.
+But three things should stop you — two are in that table, and one is the check I'd be most
+afraid of.
 
 ## 1. The token tax is invisible until something prints it
 
@@ -74,22 +75,45 @@ Disambiguation matrix  (row = correct tool · cell = % of times chosen)
 time**. That's a data-loss bug living in your tool *descriptions*, invisible to every test
 you have — and mcp-quality not only catches it, it proposes the rewrite that fixes it.
 
+## 3. The annotation that lies — and skips the confirmation dialog
+
+Here's one that *isn't* in the leaderboard, because the reference servers are honest. In
+the current MCP spec your host reads a tool's annotations — `readOnlyHint`,
+`destructiveHint` — to decide whether to **auto-approve** a call or stop and ask the user.
+But the handler runs regardless of what it claims. So a tool named `delete_record` that
+declares `readOnlyHint: true` sails straight past the confirmation dialog and deletes the
+record.
+
+mcp-quality grades whether a tool's metadata tells the truth. A write-named tool claiming
+to be read-only is a hard gate — something no linter that only reads *descriptions* can
+catch, because it's a contradiction between what the tool is *called* and what it *promises*:
+
+```
+SC2-annotation-untrue  delete_record  declares readOnlyHint=true — a host will auto-approve this
+```
+
+That's the most 2026 bug there is: the metadata your agent framework *trusts*, lying. And
+it's the thesis of the whole suite — grade what a server actually **does** against what its
+metadata **claims**.
+
 ## "Isn't this just mcp-xray?"
 
 No, and credit where it's due: [mcp-xray](https://ralforion.com/mcp-xray.html) pioneered
 scoring token-tax and tool-confusion into a single grade, and I borrowed its
 leave-one-out token method outright. But mcp-xray is an **X-ray you run by hand**.
-mcp-quality is the thing in `.github/workflows` that **blocks the merge**. Four things the
+mcp-quality is the thing in `.github/workflows` that **blocks the merge**. Five things the
 point tools don't do:
 
 1. **Load-test** with real MCP semantics (persistent connections, JSON-RPC — not naive HTTP).
 2. **Contract-test** — invoke tools, check output conformance, catch nondeterminism.
 3. **Snapshot** — diff against a committed baseline so a commit that silently breaks a
    tool fails the PR.
-4. **Gate + badge** — a letter grade with a `--fail-under B` exit code and an
+4. **Measure reliability, not peak accuracy** — `--reliability K` reports *pass^k* across K
+   runs. A server that works 9 times in 10 is a 10% incident rate, not an A.
+5. **Gate + badge** — a letter grade with a `--fail-under B` exit code and an
    `mcp-quality: A` badge for your README.
 
-Security? It's *one* of the five checks — a floor, mapped to the OWASP MCP Top 10 — and
+Security? It's *one* of the six families — a floor, mapped to the OWASP MCP Top 10 — and
 for the deep stuff it shells out to the specialists (mcp-scan, Cisco) rather than
 reinventing them. This is a quality suite that treats security as a citizen, not the
 whole town.
