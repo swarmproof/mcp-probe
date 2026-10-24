@@ -94,6 +94,30 @@ class LoadResult:
     def error_rate(self) -> float:
         return self.errors / self.total if self.total else 0.0
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize so a worker process/host can ship its result to the coordinator (#74)."""
+        return {
+            "latencies_ms": self.latencies_ms,
+            "errors": self.errors,
+            "total": self.total,
+            "crashed": self.crashed,
+            "connection_samples": self.connection_samples,
+            "max_stable_concurrency": self.max_stable_concurrency,
+            "workers": self.workers,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> LoadResult:
+        return cls(
+            latencies_ms=[float(x) for x in d.get("latencies_ms", [])],
+            errors=int(d.get("errors", 0)),
+            total=int(d.get("total", 0)),
+            crashed=bool(d.get("crashed", False)),
+            connection_samples=[int(x) for x in d.get("connection_samples", [])],
+            max_stable_concurrency=int(d.get("max_stable_concurrency", 0)),
+            workers=int(d.get("workers", 1)),
+        )
+
 
 def aggregate_results(results: list[LoadResult]) -> LoadResult:
     """Merge per-worker results into one fleet-wide picture (#51): latencies pooled into a

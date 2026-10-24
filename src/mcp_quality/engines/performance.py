@@ -6,7 +6,9 @@ naive HTTP load tools (k6) can't fill. Reports p50/p95/p99, max stable concurren
 degradation grade, and connection-leak detection. Live-only: reported "not measured" in
 static mode (ADR-006). Read-only: it drives a read-only tool, never a destructive one.
 With ``--distributed N`` the curve is fanned across N concurrent workers for a fleet-wide
-percentile picture that a single load loop can't reach (#51); 0/1 → single-host, unchanged.
+percentile picture that a single load loop can't reach (#51); ``--distributed-workers N``
+fans it across N real worker *processes/hosts* (#74, cross-host via ``--worker-command``).
+0/1 → single-host, unchanged.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ from typing import Any
 from mcp_quality.contract.schema import synthesize_args
 from mcp_quality.engines.base import EngineBase, clamp
 from mcp_quality.models import FamilyScore, Finding, ProbeContext, Severity, ToolDef
+from mcp_quality.perf.distributed import make_command_launcher, run_coordinated_load
 from mcp_quality.perf.load import (
     ConcurrencyCurve,
     classify_degradation,
@@ -46,11 +49,19 @@ class PerformanceEngine(EngineBase):
     requires_llm = False
     deterministic = False  # live load timing varies run-to-run → reliability overlay reruns it
 
-    def __init__(self, factory: Callable[[], Awaitable[Any]] | None = None) -> None:
+    def __init__(
+        self,
+        factory: Callable[[], Awaitable[Any]] | None = None,
+        launcher: Any = None,
+    ) -> None:
         self._factory = factory
+        self._launcher = launcher  # #74: inject a worker launcher in tests (no real subprocess)
 
     async def run(self, ctx: ProbeContext) -> FamilyScore:
-        if ctx.client is None and self._factory is None:
+        # A cross-host fleet (#74) self-connects in its workers, so it needs neither a live
+        # client nor a factory here.
+        dworkers = int(getattr(ctx.config, "distributed_workers", 0) or 0)
+        if ctx.client is None and self._factory is None and self._launcher is None and dworkers <= 1:
             return self.not_measured("requires a live server")
 
         tool = _pick_read_only_tool(ctx.surface)
@@ -62,14 +73,36 @@ class PerformanceEngine(EngineBase):
         curve = ConcurrencyCurve(ramp_to=concurrency, ramp_steps=4, hold_iterations=3)
         factory = self._factory or self._default_factory(ctx)
 
-        # #51: fan across N workers for a fleet-wide picture; 0/1 → single-host (unchanged).
+        # Load distribution, in precedence order: cross-host process fleet (#74) →
+        # in-process async fleet (#51) → single-host. All merge via the same aggregation.
         workers = int(getattr(ctx.config, "distributed", 0) or 0)
         per_worker: list[Any] | None = None
-        if workers > 1:
+        worker_mode = "single"
+        if dworkers > 1:  # #74: real separate processes/hosts
+            job = {
+                "target": getattr(ctx.config, "target", ""),
+                "transport": getattr(ctx.config, "transport", "auto"),
+                "headers": dict(getattr(ctx.config, "headers", {}) or {}),
+                "stdio_timeout": getattr(ctx.config, "stdio_timeout", 60.0),
+                "tool": tool.name,
+                "args": args,
+                "curve": {"ramp_to": concurrency, "ramp_steps": 4, "hold_iterations": 3},
+            }
+            launcher = self._launcher or make_command_launcher(getattr(ctx.config, "worker_command", None))
+            result, per_worker = await run_coordinated_load(job, dworkers, launcher=launcher)
+            if per_worker:
+                effective_concurrency = concurrency * len(per_worker)
+                worker_mode = "process"
+            else:  # every worker failed → honest fallback to one in-process run, not a blank
+                result = await run_load(factory, tool.name, args, curve)
+                effective_concurrency = concurrency
+                per_worker = None
+        elif workers > 1:  # #51: in-process async fleet
             result, per_worker = await run_distributed_load(
                 factory, tool.name, args, curve, workers=workers
             )
             effective_concurrency = concurrency * workers
+            worker_mode = "async"
         else:
             result = await run_load(factory, tool.name, args, curve)
             effective_concurrency = concurrency
@@ -99,7 +132,8 @@ class PerformanceEngine(EngineBase):
             "degradation": degradation,
             "leak": leak,
             "calls": result.total,
-            "workers": workers if workers > 1 else 1,
+            "workers": len(per_worker) if per_worker else 1,
+            "worker_mode": worker_mode,
         }
         if per_worker is not None:
             metrics["per_worker"] = [

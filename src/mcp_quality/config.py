@@ -76,6 +76,11 @@ class ProbeConfig:
     # Fan load across N concurrent workers for a fleet-wide percentile picture (#51).
     # 0/1 → single-host (default, unchanged).
     distributed: int = 0
+    # Cross-host: fan load across N worker *processes* (#74). 0/1 → not used. Takes precedence
+    # over `distributed`. `worker_command` is a shell template to launch each worker (default:
+    # the local interpreter); set e.g. "ssh host -- python -m mcp_quality.perf.worker" for remote.
+    distributed_workers: int = 0
+    worker_command: str | None = None
 
     # --- security ---
     deep_security: bool = False  # shell out to mcp-scan / Cisco (REQ-S4)
