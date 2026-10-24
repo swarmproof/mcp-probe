@@ -118,6 +118,10 @@ def _add_family_flags(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--concurrency", type=int, default=None)
     sp.add_argument("--distributed", type=int, default=None, metavar="N",
                     help="fan load across N concurrent workers for a fleet-wide percentile picture")
+    sp.add_argument("--distributed-workers", type=int, default=None, metavar="N",
+                    help="fan load across N worker processes/hosts (cross-host; see --worker-command)")
+    sp.add_argument("--worker-command", default=None, metavar="CMD",
+                    help="shell template to launch each worker (default: local; use ssh for remote)")
     sp.add_argument("--reliability", dest="reliability_k", type=int, default=None, metavar="K",
                     help="rerun nondeterministic families K times, report pass^k consistency")
     sp.add_argument("--response-bloat", action="store_true",
@@ -165,6 +169,8 @@ def _config_from_args(args: argparse.Namespace) -> ProbeConfig:
         "seed": getattr(args, "seed", None),
         "concurrency": getattr(args, "concurrency", None),
         "distributed": getattr(args, "distributed", None),
+        "distributed_workers": getattr(args, "distributed_workers", None),
+        "worker_command": getattr(args, "worker_command", None),
         "reliability_k": getattr(args, "reliability_k", None),
         "families": _families_from_args(args) if hasattr(args, "all_families") else None,
     }
