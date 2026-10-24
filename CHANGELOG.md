@@ -3,6 +3,29 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.6.0] — 2026-10-24 · research gap-closure
+
+Closes the gaps between the MCP pain points builders actually hit and what the suite
+checks, so the grade reflects the quality it claims. All additive; `RUBRIC_VERSION`
+unchanged (findings extend existing families).
+
+### Added
+- **Tool-count overload gate** — `L8-tool-overload` (zero-LLM, free path): flags a toolset
+  large enough to hurt agent tool-selection (banded past ~15/30/50 tools; selection accuracy
+  craters past the ~40–50 cliff), with remediation = namespace / sub-servers / dynamic
+  tool-loading. Surfaces `tool_count` + `overload_band`. (#63)
+- **Silent-failure detection** — `C13-silent-failure` (live): flags a success result that is
+  error-shaped or empty-when-the-output-schema-promises-content. (#64)
+- **Client-compat lints** — `C14-*` (static): oversized/unbounded output, non-portable
+  content hints, and annotation-only safety — the hazards that make a server work in one MCP
+  client and break in another. (#66)
+- **Path-traversal surface lint** — `S4-path-traversal-surface` (static, light): flags
+  unconstrained path-like params, mapped to OWASP MCP; deep analysis stays deferred to
+  `--deep-security`. (#65)
+- **Overall quality verdict** — a `verdict` rollup in the report (`PASS`/`FAIL` + blockers,
+  each with its fix; unmeasured families are caveats, not blockers — ADR-006), in JSON and
+  the terminal. (#67)
+
 ## [0.5.0] — 2026-10-06 · scale, trust & ecosystem
 
 The v0.4 milestone: deepen trust (authz, tasks, consensus), scale the runner (distributed
@@ -141,6 +164,7 @@ Also included (planned as the "v0.2" milestone, shipped in this first release):
   (OWASP MCP Top 10 mapping; why the `2026-07-28` stateless `server/discover` path is not
   yet implemented; the offline-token estimate).
 
+[0.6.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.6.0
 [0.5.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.5.0
 [0.4.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.4.0
 [0.3.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.3.0
