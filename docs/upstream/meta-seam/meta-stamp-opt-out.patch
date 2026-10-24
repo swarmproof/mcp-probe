@@ -1,0 +1,117 @@
+diff --git a/src/mcp/client/session.py b/src/mcp/client/session.py
+index 35cae2d..e4f202a 100644
+--- a/src/mcp/client/session.py
++++ b/src/mcp/client/session.py
+@@ -544,11 +544,16 @@ class ClientSession:
+         request_read_timeout_seconds: float | None = None,
+         metadata: ClientMessageMetadata | None = None,
+         progress_callback: ProgressFnT | None = None,
++        stamp: bool = True,
+     ) -> ReceiveResultT:
+         """Send a request and wait for its typed result.
+ 
+         Args:
+             metadata: Streamable HTTP resumption hints.
++            stamp: When ``False``, skip the automatic protocol stamp so the request's
++                params are sent verbatim (no injected ``_meta`` / protocol-version header).
++                Intended for conformance testing — e.g. verifying a server rejects a request
++                that omits required ``_meta``. Leave ``True`` for normal use.
+ 
+         Raises:
+             MCPError: Error response, read timeout, or connection closed.
+@@ -560,7 +565,8 @@ class ClientSession:
+         data = request.model_dump(by_alias=True, mode="json", exclude_none=True)
+         method: str = data["method"]
+         opts: CallOptions = {}
+-        self._stamp(data, opts)
++        if stamp:
++            self._stamp(data, opts)
+         # The stamp runs first, so its NAME_BEARING_METHODS rows win; a missing name fails loud.
+         headers = opts.setdefault("headers", {})
+         if (key := type(request).name_param) is not None and MCP_NAME_HEADER not in headers:
+diff --git a/tests/client/test_send_request_stamp_opt_out.py b/tests/client/test_send_request_stamp_opt_out.py
+new file mode 100644
+index 0000000..32d4973
+--- /dev/null
++++ b/tests/client/test_send_request_stamp_opt_out.py
+@@ -0,0 +1,80 @@
++"""`ClientSession.send_request(stamp=False)` sends params verbatim — no injected `_meta`
++or protocol-version header — so a caller can probe a server that omits required `_meta`
++(a 2026-07-28 conformance check). The default (`stamp=True`) is unchanged."""
++
++from collections.abc import Mapping
++from typing import Any, Literal
++
++import anyio
++import anyio.abc
++import mcp_types as types
++import pytest
++from mcp_types import ServerCapabilities
++from mcp_types.version import LATEST_MODERN_VERSION
++
++from mcp.client.session import ClientSession
++from mcp.shared.dispatcher import CallOptions, OnNotify, OnNotifyIntercept, OnRequest
++from mcp.shared.inbound import MCP_PROTOCOL_VERSION_HEADER
++
++
++class _RecordingDispatcher:
++    """Records the (method, params, opts) actually sent to the wire."""
++
++    def __init__(self) -> None:
++        self.calls: list[tuple[str, Mapping[str, Any] | None, CallOptions]] = []
++
++    async def run(
++        self,
++        on_request: OnRequest,
++        on_notify: OnNotify,
++        on_notify_intercept: OnNotifyIntercept | None = None,
++        *,
++        task_status: anyio.abc.TaskStatus[None] = anyio.TASK_STATUS_IGNORED,
++    ) -> None:
++        task_status.started()
++        await anyio.sleep_forever()
++
++    async def send_raw_request(
++        self, method: str, params: Mapping[str, Any] | None, opts: CallOptions | None = None
++    ) -> dict[str, Any]:
++        self.calls.append((method, params, opts or {}))
++        return {}
++
++    async def notify(self, method: str, params: Mapping[str, Any] | None, opts: CallOptions | None = None) -> None:
++        raise NotImplementedError
++
++
++class _VendorRequest(types.Request[types.RequestParams, Literal["vendor/widgets/get"]]):
++    method: Literal["vendor/widgets/get"] = "vendor/widgets/get"
++
++
++def _adopt_modern(session: ClientSession) -> None:
++    session.adopt(types.DiscoverResult(supported_versions=[LATEST_MODERN_VERSION], capabilities=ServerCapabilities()))
++
++
++def _headers(opts: CallOptions) -> dict[str, str]:
++    return opts.get("headers") or {}
++
++
++@pytest.mark.anyio
++async def test_default_stamp_injects_meta_on_modern_wire() -> None:
++    dispatcher = _RecordingDispatcher()
++    with anyio.fail_after(5):
++        async with ClientSession(dispatcher=dispatcher) as session:
++            _adopt_modern(session)
++            await session.send_request(_VendorRequest(params=types.RequestParams()), types.EmptyResult)
++    _, params, opts = dispatcher.calls[-1]
++    assert "_meta" in (params or {})
++    assert MCP_PROTOCOL_VERSION_HEADER in _headers(opts)
++
++
++@pytest.mark.anyio
++async def test_stamp_false_sends_params_verbatim() -> None:
++    dispatcher = _RecordingDispatcher()
++    with anyio.fail_after(5):
++        async with ClientSession(dispatcher=dispatcher) as session:
++            _adopt_modern(session)
++            await session.send_request(_VendorRequest(params=types.RequestParams()), types.EmptyResult, stamp=False)
++    _, params, opts = dispatcher.calls[-1]
++    assert "_meta" not in (params or {})
++    assert MCP_PROTOCOL_VERSION_HEADER not in _headers(opts)
