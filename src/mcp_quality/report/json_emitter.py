@@ -14,6 +14,7 @@ from typing import Any
 from mcp_quality import REPORT_SCHEMA
 from mcp_quality.config import ALL_FAMILIES
 from mcp_quality.models import Report
+from mcp_quality.report.rollup import quality_verdict
 
 
 def report_to_dict(report: Report, *, include_meta: bool = True) -> dict[str, Any]:
@@ -45,6 +46,7 @@ def report_to_dict(report: Report, *, include_meta: bool = True) -> dict[str, An
             "hard_gate": report.hard_gate,
         },
         "families": families_out,
+        "verdict": quality_verdict(report),
     }
     if report.regression is not None:
         doc["regression"] = report.regression
