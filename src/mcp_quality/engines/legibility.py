@@ -16,7 +16,7 @@ from __future__ import annotations
 from mcp_quality.engines.base import EngineBase, clamp
 from mcp_quality.legibility.cache import LegibilityCache, cache_key
 from mcp_quality.legibility.consensus import consensus_report
-from mcp_quality.legibility.lints import lint_descriptions
+from mcp_quality.legibility.lints import lint_descriptions, lint_tool_overload, overload_band
 from mcp_quality.legibility.model import ModelProvider, build_model
 from mcp_quality.legibility.similarity import confusable_shortlist
 from mcp_quality.models import FamilyScore, Finding, ProbeContext, ServerSurface, Severity
@@ -78,8 +78,12 @@ class LegibilityEngine(EngineBase):
 
     async def run(self, ctx: ProbeContext) -> FamilyScore:
         lints = lint_descriptions(ctx.surface)
+        overload = lint_tool_overload(ctx.surface)  # #63: tool-count overload cliff
+        if overload is not None:
+            lints.append(overload)
         lint_penalty = min(30, sum(_LINT_PENALTY.get(f.severity, 0) for f in lints))
         shortlist = confusable_shortlist(ctx.surface)
+        tool_count = len(ctx.surface.tools)
 
         panel = self._resolve_panel(ctx)
         # The primary (scored) model is the configured one, or the first panel member when
@@ -99,6 +103,8 @@ class LegibilityEngine(EngineBase):
                     "selection_rate": None,
                     "behavioural": "not measured (no model configured)",
                     "lexical_confusable_pairs": shortlist[:5],
+                    "tool_count": tool_count,
+                    "overload_band": overload_band(tool_count),
                 },
             )
 
@@ -139,6 +145,8 @@ class LegibilityEngine(EngineBase):
             "goal_set_version": getattr(ctx.config, "goal_set_version", "1"),
             "canonical": model.is_canonical,
             "cache_hit": probe["cache_hit"],
+            "tool_count": tool_count,
+            "overload_band": overload_band(tool_count),
             "lexical_confusable_pairs": shortlist[:5],
             "matrix": probe.get("matrix"),
             "tool_order": probe.get("tool_order"),

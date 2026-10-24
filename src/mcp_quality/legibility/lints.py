@@ -31,6 +31,41 @@ _PAGINATION_PARAMS = {
 # Low-level identifiers that shouldn't leak into agent-facing descriptions.
 _LEAKED_ID = re.compile(r"\b(uuid|guid|mime_?type|base64|[0-9]{2,4}px|etag|checksum|sha-?256)\b", re.I)
 
+# Tool-count overload (#63): agent tool-selection accuracy craters past ~40–50 tools
+# (measured ~95%→71%); <10–15 visible tools is ideal for smaller models. Bands: (threshold,
+# severity, why) in descending order — the first exceeded band wins.
+_OVERLOAD_BANDS: tuple[tuple[int, Severity, str], ...] = (
+    (50, Severity.MEDIUM, "past the ~40–50-tool cliff where agents start picking the wrong tool"),
+    (30, Severity.LOW, "above the comfortable range — tool selection begins to degrade"),
+    (15, Severity.INFO, "above the ~10–15-tool ideal for smaller models"),
+)
+
+
+def overload_band(tool_count: int) -> str:
+    """Short band label for metrics: ok | above-ideal | degraded | overloaded."""
+    if tool_count > 50:
+        return "overloaded"
+    if tool_count > 30:
+        return "degraded"
+    if tool_count > 15:
+        return "above-ideal"
+    return "ok"
+
+
+def lint_tool_overload(surface: ServerSurface) -> Finding | None:
+    """Surface-level: flag a toolset large enough to hurt agent tool-selection (#63)."""
+    n = len(surface.tools)
+    for threshold, severity, why in _OVERLOAD_BANDS:
+        if n > threshold:
+            return Finding(
+                family="legibility", code="L8-tool-overload", severity=severity,
+                message=f"{n} tools exposed — {why}",
+                remediation="group/namespace tools, split into focused sub-servers, or load "
+                "tools dynamically (tool-search / RAG-MCP) so the agent sees only what it needs",
+                evidence={"tool_count": n, "band": overload_band(n)},
+            )
+    return None
+
 
 def lint_descriptions(surface: ServerSurface) -> list[Finding]:
     findings: list[Finding] = []
