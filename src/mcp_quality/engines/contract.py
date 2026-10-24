@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 
+from mcp_quality.contract.client_compat import grade_client_compat
 from mcp_quality.contract.errors import grade_error_payload
 from mcp_quality.contract.schema import (
     synthesize_args,
@@ -22,6 +23,7 @@ from mcp_quality.contract.schema import (
     validate_against,
     validate_schema,
 )
+from mcp_quality.contract.silent_failure import detect_silent_failure
 from mcp_quality.contract.stateless import grade_stateless_conformance
 from mcp_quality.engines.base import EngineBase, clamp
 from mcp_quality.models import FamilyScore, Finding, ProbeContext, Severity, ToolDef
@@ -93,9 +95,14 @@ class ContractEngine(EngineBase):
                         )
                     )
 
+        # REQ-C14 (#66): cross-client portability lints — static-ok, pure over the surface.
+        compat_findings = grade_client_compat(tools)
+        findings.extend(compat_findings)
+
         invoked = 0
         conformance_breaks = 0
         nondeterministic = 0
+        silent_failures = 0  # #64 — success results that are actually failures (live-only)
         error_path_crashes = 0
         recovery_scores: list[int] = []  # per-tool error-recovery affordance (issue #25)
         skipped_writes: list[str] = []
@@ -108,9 +115,10 @@ class ContractEngine(EngineBase):
                     skipped_writes.append(tool.name)
                     continue
                 invoked += 1
-                broke, nondet = await self._probe_tool(ctx, tool, findings)
+                broke, nondet, silent = await self._probe_tool(ctx, tool, findings)
                 conformance_breaks += int(broke)
                 nondeterministic += int(nondet)
+                silent_failures += int(silent)
                 # REQ-C9 + #25: bad input must not crash, and the error must be recoverable.
                 crashed, affordance = await self._probe_error_path(ctx, tool, findings)
                 error_path_crashes += int(crashed)
@@ -136,6 +144,15 @@ class ContractEngine(EngineBase):
         if stateless_readiness.get("tools_list_stable") is False:
             score = clamp(score - 10.0)
 
+        # #64: silent failures (success-shaped results that are actually errors) — bounded,
+        # non-gating penalty. Heuristic detection, so it nudges the grade rather than gating it.
+        if silent_failures:
+            score = clamp(score - min(20.0, silent_failures * 10.0))
+
+        # #66: cross-client portability lints — bounded, gentle, non-gating (LOW advisories).
+        if compat_findings:
+            score = clamp(score - min(6.0, len(compat_findings) * 2.0))
+
         hard_gate = (
             bool(schema_invalid)
             or conformance_breaks > 0
@@ -153,6 +170,10 @@ class ContractEngine(EngineBase):
             summary_bits.append(f"{conformance_breaks} contract break(s)")
         if nondeterministic:
             summary_bits.append(f"{nondeterministic} nondeterministic")
+        if silent_failures:
+            summary_bits.append(f"{silent_failures} silent failure(s)")
+        if compat_findings:
+            summary_bits.append(f"{len(compat_findings)} client-compat hazard(s)")
         if error_path_crashes:
             summary_bits.append(f"{error_path_crashes} crash-on-bad-input")
         if mean_affordance is not None and mean_affordance < 70:
@@ -175,6 +196,9 @@ class ContractEngine(EngineBase):
                 "schema_invalid": sorted(schema_invalid),
                 "conformance_breaks": conformance_breaks,
                 "nondeterministic": nondeterministic,
+                # #64: live-only — "not measured" (None) offline, never zeroed (ADR-006).
+                "silent_failures": silent_failures if measured_live else None,
+                "client_compat_hazards": len(compat_findings),
                 "error_path_crashes": error_path_crashes,
                 "error_recovery_affordance": mean_affordance,
                 "skipped_writes": skipped_writes,
@@ -189,14 +213,15 @@ class ContractEngine(EngineBase):
 
     async def _probe_tool(
         self, ctx: ProbeContext, tool: ToolDef, findings: list[Finding]
-    ) -> tuple[bool, bool]:
-        """Invoke a tool with synthesized args; check output conformance (C4) and
-        determinism (C5). Returns (conformance_broke, nondeterministic)."""
+    ) -> tuple[bool, bool, bool]:
+        """Invoke a tool with synthesized args; check output conformance (C4), determinism
+        (C5) and silent failure (C13). Returns (conformance_broke, nondeterministic, silent)."""
         assert ctx.client is not None  # only called on the live path
         seed = getattr(ctx.config, "seed", 42)
         args = synthesize_args(tool.input_schema, seed=seed)
         broke = False
         nondet = False
+        silent = False
         try:
             first = await ctx.client.call_tool(tool.name, args)
         except Exception as exc:  # a crash on schema-valid args is itself a contract break
@@ -209,7 +234,7 @@ class ContractEngine(EngineBase):
                     message=f"tool raised on schema-valid args: {exc!s}",
                 )
             )
-            return True, False
+            return True, False, False
 
         # REQ-C4: output conformance against the declared output_schema.
         if tool.output_schema and not first.is_error:
@@ -227,6 +252,14 @@ class ContractEngine(EngineBase):
                         remediation="align the returned shape with output_schema, or drop the schema",
                     )
                 )
+
+        # REQ-C13 (#64): silent failure — a success result that is actually an error / empty.
+        # Skip when C4 already flagged this tool: the break is surfaced, no need to double-count.
+        if not broke:
+            sf = detect_silent_failure(tool.name, first, tool.output_schema)
+            if sf is not None:
+                silent = True
+                findings.append(sf)
 
         # REQ-C5: determinism probe — same args twice.
         try:
@@ -246,7 +279,7 @@ class ContractEngine(EngineBase):
                     )
         except Exception:
             pass  # a second-call failure is noise; the first call already scored the tool
-        return broke, nondet
+        return broke, nondet, silent
 
     async def _probe_error_path(
         self, ctx: ProbeContext, tool: ToolDef, findings: list[Finding]
