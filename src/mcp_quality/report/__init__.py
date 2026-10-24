@@ -3,6 +3,7 @@ JSON (the CI contract), and badge. Renderers are read-only consumers of the Repo
 
 from mcp_quality.report.badge import badge_color, badge_svg, shields_endpoint
 from mcp_quality.report.json_emitter import report_to_dict, report_to_json
+from mcp_quality.report.rollup import quality_verdict
 
 __all__ = [
     "report_to_dict",
@@ -10,4 +11,5 @@ __all__ = [
     "badge_color",
     "badge_svg",
     "shields_endpoint",
+    "quality_verdict",
 ]

@@ -24,7 +24,7 @@ cleanly to the research's core pains — **this part of the value is delivered.*
 | 2 | **Silent-failure depth** | top-3 failure: "fails without reporting" | Contract | **S–M** | **High** | ✅ IN |
 | 3 | **Path-traversal surface (light)** | 82% of audited servers vulnerable; #1 CVE class | Security-lite | **S** | Med | ✅ IN (light) |
 | 4 | **Client-compat lints (static subset)** | "works in Claude Code, breaks in Cursor" | Contract | **M** | **High** | ✅ IN (light) |
-| 5 | **Production-ready rollup verdict** | 86% never leave the laptop | cross-family | **M** | Med | ◻ IN (rollup only) |
+| 5 | **Overall quality verdict rollup** | 86% never leave the laptop | cross-family | **M** | Med | ◻ IN (rollup only) |
 | 6 | **Full multi-client harness** | real behavior diff across hosts | new | **L** | High | ⏳ DEFER (own milestone) |
 | 7 | **`_meta` enforcement probe** | stateless spec RC | Contract | S | Low | 🚫 OUT (SDK-blocked) |
 | 8 | **Multi-tool task success / long-horizon** | LiveMCP-101 <60% | — | L | High | 🚫 OUT (→ stampede handoff) |
@@ -63,14 +63,14 @@ is heavy (#6), but the common footguns are statically detectable.
   non-standard content types, error shapes clients disagree on, reliance on optional annotations.
   Ships value now; the full harness is a later milestone.
 
-### 5. Production-ready rollup verdict — ◻ IN (rollup only)
-"86% never ship." Much of production-readiness is *already measured* (load, contract, safety);
+### 5. Overall quality verdict rollup — ◻ IN (rollup only)
+"86% never ship." Much of a server's readiness is *already measured* (load, contract, safety);
 the gap is we don't **summarize it as a go/no-go**.
-- **Add** a `production_ready` rollup in the report: a boolean + the blocking reasons, composed
+- **Add** a `verdict` rollup in the report: a boolean + the blocking reasons, composed
   from existing hard-gates + a few light readiness signals (timeout/retry/error-handling hints).
 - Deep readiness heuristics (cold start, serverless statefulness) stay **deferred to Cisco**
-  via `--deep-security` — don't reinvent. This rollup is what P1 (junior ships like a senior)
-  most needs: one honest "is this shippable?" answer.
+  via `--deep-security` — don't reinvent. This rollup is what P1 most needs: one honest
+  pass/fail answer with the fix for each blocker.
 
 ### 6. Full multi-client harness — ⏳ DEFER
 Spawning real Claude Code / Cursor client behaviors to diff them is a genuine, differentiated
@@ -91,11 +91,11 @@ is the boundary between the two tools by design, not a gap to fill here.
 
 - **Wave 1 (days) — close the quantified gaps:** #1 tool-overload, #2 silent-failure,
   #3 path-traversal-light. After this, *every quantified pain in the research is covered.*
-- **Wave 2 (≈1 week) — differentiated coverage:** #4 client-compat lints, #5 production-ready
+- **Wave 2 (≈1 week) — differentiated coverage:** #4 client-compat lints, #5 quality verdict
   rollup.
 - **Later / boundaries:** #6 (own milestone), #7 (SDK-blocked), #8 (stampede handoff).
 
 ## Definition of "we deliver the value"
 After Wave 1+2, mcp-quality can honestly claim: *every pain point and KPI our research
 surfaced is either measured, gated, or an explicitly documented boundary* — and the report
-ends with a single **production-ready verdict + the senior-level fix for each blocker** (P1).
+ends with a single **quality verdict + the fix for each blocker** (P1).

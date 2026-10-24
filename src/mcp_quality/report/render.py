@@ -17,6 +17,7 @@ from rich.table import Table
 from rich.text import Text
 
 from mcp_quality.models import NOT_MEASURED, Report
+from mcp_quality.report.rollup import quality_verdict
 
 # Oxblood palette — the toolkit's house accent.
 OXBLOOD = "#4a0e17"
@@ -59,6 +60,8 @@ def render_terminal(report: Report, *, console: Console | None = None) -> str:
                 (f"'{report.hard_gate}' capped the overall grade at C", "red"),
             )
         )
+
+    _render_verdict(con, report)
 
     table = Table(show_header=True, header_style=f"bold {OXBLOOD}", expand=True)
     table.add_column("Family")
@@ -154,6 +157,31 @@ def render_confusion_matrix(metrics: dict[str, Any], *, console: Console | None 
     if console is not None:
         console.print(out, end="")
     return out
+
+
+def _render_verdict(con: Console, report: Report) -> None:
+    """The quality verdict rollup (#67): one honest line — PASS, or FAIL with the blockers
+    and their remediation listed. Unmeasured families are shown as caveats, not blockers."""
+    rollup = quality_verdict(report)
+    blockers = rollup["blockers"]
+    caveats = rollup["caveats"]
+    if rollup["passed"]:
+        con.print(Text.assemble(("Verdict: ", "bold white"), ("PASS", "bold green")))
+    else:
+        n = len(blockers)
+        con.print(
+            Text.assemble(
+                ("Verdict: ", "bold white"),
+                ("FAIL", "bold red"),
+                (f" — {n} blocker{'s' if n != 1 else ''}", "red"),
+            )
+        )
+        for b in blockers:
+            con.print(Text(f"  ✗ {b['family']}: {b['reason']}", style="red"))
+            if b["remediation"]:
+                con.print(Text(f"      ↳ {b['remediation']}", style="dim"))
+    if caveats:
+        con.print(Text(f"  caveats (not measured): {', '.join(caveats)}", style="dim"))
 
 
 def _reliability_style(rate: float) -> str:
