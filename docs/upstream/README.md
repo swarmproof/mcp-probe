@@ -26,18 +26,33 @@ mark a tool as task-producing** — `MCPServer.tool()` has no task option, `Serv
 no task methods, and the high-level server advertises no `tasks` capability. Building a
 task-emitting server today means dropping to the Extension/low-level tier by hand.
 
+### Verified wall (we tried it — `mcp` 2.3.0)
+A reference task server built on `Extension` ([`reference/task_server.py`](reference/task_server.py))
+constructs, starts, and advertises the `tasks` capability — but **can't be driven end-to-end**:
+- Tasks live only on the **modern `2026-07-28`** protocol (`MODERN_PROTOCOL_VERSIONS = ('2026-07-28',)`).
+- The `initialize` handshake caps at **`2025-11-25`** (`LATEST_HANDSHAKE_VERSION`); the modern
+  path needs `server/discover`, which isn't reachable for a high-level `MCPServer` (`discover()`
+  fails), so a task-augmented `tools/call` under the negotiated 2025-11-25 session **hangs**.
+
+So the gap is two-fold: (a) no high-level task ergonomic, **and** (b) no working high-level
+**modern (2026-07-28) client+server path** to exercise tasks at all.
+
 ### Why it matters
-- **Server authors** can't adopt long-running tasks without the advanced Extension API.
-- **Conformance/quality tooling** (e.g. mcp-quality) can't build a task-emitting **fixture**
-  to test task-lifecycle behavior (terminal states, cancellation, orphaning) — so those checks
-  can't be exercised end-to-end against the reference SDK.
+- **Server authors** can't adopt long-running tasks without the advanced Extension API *and* a
+  modern-protocol connection path that works end-to-end.
+- **Conformance/quality tooling** (e.g. mcp-quality) can't drive a task lifecycle (terminal
+  states, cancellation, orphaning) against the reference SDK — the checks exist (#49) but have
+  no reachable server.
 
 ### Proposal
 1. A high-level ergonomic to declare a task-producing tool, e.g. `@server.tool(task=True)` (or
    a `tasks=` helper), wiring the Extension machinery under the hood and advertising the
    `tasks` capability.
-2. Ship a small **reference/test task server** (or a `tests/` fixture) that emits a task and
-   serves `tasks/get`/`tasks/cancel`, so downstream tooling has a canonical target to test against.
+2. A working high-level **modern (2026-07-28) client+server path** (or docs showing the
+   supported way to establish a modern session) so task methods are reachable.
+3. Ship a small **reference/test task server** that emits a task and serves `tasks/get`/
+   `tasks/cancel` — [`reference/task_server.py`](reference/task_server.py) is a starting point
+   (it builds; it just needs #2 to be drivable).
 
 ### Acceptance
 - A high-level server can expose a tool whose call returns a `CreateTaskResult` and whose task
