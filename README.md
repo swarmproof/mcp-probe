@@ -17,9 +17,16 @@ the `pytest` + `lighthouse` for the tools your agents depend on.**
 ---
 
 Security scanners tell you if your MCP server is *dangerous*. **mcp-quality tells you if
-it's *good* — and blocks the merge when it gets worse.** It grades any server across five
-dimensions into a single **MCP Quality Score**, runs deterministically in CI with no LLM
-and no key, and prints a badge.
+it's *good* — and keeps it that way.** It grades any server across **six check families**
+into a single **MCP Quality Score**, ending in one pass/fail **verdict** with the fix for
+each issue.
+
+**Use it two ways:**
+- **As a CI gate** — deterministic, no LLM and no key; blocks the merge when quality
+  regresses, and prints a README badge.
+- **As an MCP server your coding agent calls** — add `mcp-quality` to Claude Code / Cursor
+  and it grades, explains, and proposes fixes for the server you're building, in the agent's
+  own loop (`grade_server` · `explain_findings` · `propose_fixes`). Same engine; agent-native.
 
 ```console
 $ mcp-quality run "python my_server.py" --legibility
@@ -51,7 +58,13 @@ pip install mcp-quality
 mcp-quality run "python my_server.py"                       # graded A–F report
 mcp-quality run "python my_server.py" --json --fail-under B # CI gate (exit 1 if < B)
 mcp-quality static ./server.mcp.json                        # offline / air-gapped
+mcp-quality mcp                                             # run AS an MCP server (agent-native)
 ```
+
+**Agent-native:** point your coding agent at `mcp-quality mcp` (an MCP server over stdio) and
+it calls `grade_server` / `explain_findings` / `propose_fixes` directly — grade the server it's
+building, get the findings with fixes, and apply them, all in its own loop. Read-only: it
+grades and proposes; it never writes your files.
 
 The zero-LLM **fast path** (Contract + Cost) is deterministic and needs no model, key, or
 network beyond your server. Add `--legibility --model ollama:qwen2.5-3b` for the
@@ -135,6 +148,7 @@ which pioneered token-tax + tool-confusion scoring (we borrow its leave-one-out 
 | `mcp-quality fix --legibility` | apply proposed description rewrites (`--apply` / `--pr`) |
 | `mcp-quality compare a.json b.json` | score-delta between two runs (sticky PR comment) |
 | `mcp-quality serve` | hosted scoring API for registries (`[registry]` extra) |
+| `mcp-quality mcp` | run AS an MCP server a coding agent calls (`grade_server` / `explain_findings` / `propose_fixes`) |
 
 ## Leaderboard
 
