@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 
+from mcp_quality.contract.client_compat import grade_client_compat
 from mcp_quality.contract.errors import grade_error_payload
 from mcp_quality.contract.schema import (
     synthesize_args,
@@ -94,6 +95,10 @@ class ContractEngine(EngineBase):
                         )
                     )
 
+        # REQ-C14 (#66): cross-client portability lints — static-ok, pure over the surface.
+        compat_findings = grade_client_compat(tools)
+        findings.extend(compat_findings)
+
         invoked = 0
         conformance_breaks = 0
         nondeterministic = 0
@@ -144,6 +149,10 @@ class ContractEngine(EngineBase):
         if silent_failures:
             score = clamp(score - min(20.0, silent_failures * 10.0))
 
+        # #66: cross-client portability lints — bounded, gentle, non-gating (LOW advisories).
+        if compat_findings:
+            score = clamp(score - min(6.0, len(compat_findings) * 2.0))
+
         hard_gate = (
             bool(schema_invalid)
             or conformance_breaks > 0
@@ -163,6 +172,8 @@ class ContractEngine(EngineBase):
             summary_bits.append(f"{nondeterministic} nondeterministic")
         if silent_failures:
             summary_bits.append(f"{silent_failures} silent failure(s)")
+        if compat_findings:
+            summary_bits.append(f"{len(compat_findings)} client-compat hazard(s)")
         if error_path_crashes:
             summary_bits.append(f"{error_path_crashes} crash-on-bad-input")
         if mean_affordance is not None and mean_affordance < 70:
@@ -187,6 +198,7 @@ class ContractEngine(EngineBase):
                 "nondeterministic": nondeterministic,
                 # #64: live-only — "not measured" (None) offline, never zeroed (ADR-006).
                 "silent_failures": silent_failures if measured_live else None,
+                "client_compat_hazards": len(compat_findings),
                 "error_path_crashes": error_path_crashes,
                 "error_recovery_affordance": mean_affordance,
                 "skipped_writes": skipped_writes,
