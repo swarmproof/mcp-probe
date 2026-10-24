@@ -40,7 +40,7 @@ but never flag *count* against the selection cliff.
   (>15 info, >30 low, >50 medium) with remediation = namespace / split / dynamic tool-loading
   (RAG-MCP / tool-search). Surface `tool_count` + `overload_band` in metrics.
 - **Why Legibility:** it predicts *selection* failure and runs offline. Cost also shows the count.
-- P1: remediation teaches the senior move (dynamic loading / sub-servers), not just "too many."
+- Remediation names the concrete fix (dynamic loading / sub-servers), not just "too many."
 
 ### 2. Silent-failure depth — ✅ IN
 Today C11 catches "accepts invalid input." The research's "silent failure" is broader: the
@@ -69,8 +69,8 @@ the gap is we don't **summarize it as a go/no-go**.
 - **Add** a `verdict` rollup in the report: a boolean + the blocking reasons, composed
   from existing hard-gates + a few light readiness signals (timeout/retry/error-handling hints).
 - Deep readiness heuristics (cold start, serverless statefulness) stay **deferred to Cisco**
-  via `--deep-security` — don't reinvent. This rollup is what P1 most needs: one honest
-  pass/fail answer with the fix for each blocker.
+  via `--deep-security` — don't reinvent. The rollup gives one honest pass/fail answer with
+  the fix for each blocker.
 
 ### 6. Full multi-client harness — ⏳ DEFER
 Spawning real Claude Code / Cursor client behaviors to diff them is a genuine, differentiated
@@ -98,4 +98,4 @@ is the boundary between the two tools by design, not a gap to fill here.
 ## Definition of "we deliver the value"
 After Wave 1+2, mcp-quality can honestly claim: *every pain point and KPI our research
 surfaced is either measured, gated, or an explicitly documented boundary* — and the report
-ends with a single **quality verdict + the fix for each blocker** (P1).
+ends with a single **quality verdict + the fix for each blocker**.

@@ -47,11 +47,11 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ## 📍 Where we are now
 
-- **Live on PyPI** (`mcp-quality 0.5.0`), published via trusted publishing — the v0.4
-  milestone (authz, tasks, consensus, distributed load, registry) on **MCP SDK v2**.
+- **Live on PyPI** (`mcp-quality 0.6.0`), published via trusted publishing — the v0.6
+  research gap-closure on top of v0.4/v0.5, on **MCP SDK v2**.
 - **Six scored families** (Contract · Cost · Legibility · Performance · Security-lite ·
   Safety-Contract) plus an **experimental** spec-surface family, all behind one rubric.
-- **Green CI** across Python 3.11/3.12/3.13 — 266 tests (unit · component · integration · E2E
+- **Green CI** across Python 3.11/3.12/3.13 — 322 tests (unit · component · integration · E2E
   over stdio + HTTP/SSE), plus opt-in `live_llm` and `deep_security` suites.
 - **Validated end-to-end against real servers** — a public [leaderboard](./docs/leaderboard.md)
   of reference MCP servers, and a live authenticated production run.
@@ -103,6 +103,19 @@ contract. All merged. ([milestone](https://github.com/swarmproof/mcp-probe/miles
   fleet-wide percentile picture. [#51]
 - **Registry / marketplace integration** — batch scoring + a freshness/staleness check on
   the `mcp-quality serve` API, with a worked GitHub Action + webhook. [#52]
+
+---
+
+## ✅ Shipped — v0.6: research gap-closure (`0.6.0`)
+
+Closing the gaps between the MCP pain points builders actually hit and what the suite checks
+(see [`docs/COVERAGE-GAPS.md`](./docs/COVERAGE-GAPS.md)).
+
+- **Tool-count overload gate** — `L8-tool-overload`: the ~40–50-tool selection cliff. [#63]
+- **Silent-failure detection** — `C13`: a success result that errored or did nothing. [#64]
+- **Client-compat lints** — `C14-*`: hazards that break a server across MCP clients. [#66]
+- **Path-traversal surface lint** — `S4` (light; deep → `--deep-security`). [#65]
+- **Overall quality verdict** — a `verdict` rollup (`PASS`/`FAIL` + blockers). [#67]
 
 ---
 
