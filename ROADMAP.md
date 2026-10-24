@@ -47,11 +47,11 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ## 📍 Where we are now
 
-- **Live on PyPI** (`mcp-quality 0.6.0`), published via trusted publishing — the v0.6
-  research gap-closure on top of v0.4/v0.5, on **MCP SDK v2**.
+- **Live on PyPI** (`mcp-quality 0.7.0`), published via trusted publishing — cross-host
+  distributed load on top of the v0.6 research gap-closure, on **MCP SDK v2**.
 - **Six scored families** (Contract · Cost · Legibility · Performance · Security-lite ·
   Safety-Contract) plus an **experimental** spec-surface family, all behind one rubric.
-- **Green CI** across Python 3.11/3.12/3.13 — 322 tests (unit · component · integration · E2E
+- **Green CI** across Python 3.11/3.12/3.13 — 328 tests (unit · component · integration · E2E
   over stdio + HTTP/SSE), plus opt-in `live_llm` and `deep_security` suites.
 - **Validated end-to-end against real servers** — a public [leaderboard](./docs/leaderboard.md)
   of reference MCP servers, and a live authenticated production run.
@@ -119,13 +119,17 @@ Closing the gaps between the MCP pain points builders actually hit and what the 
 
 ---
 
-## 🔭 Later
+## ✅ Shipped — v0.7: scale (`0.7.0`)
 
-- **Cross-host distributed load** — a real multi-machine coordinator on top of the fleet
-  aggregation layer (#51 built the in-process harness).
-- **Live tasks probe** — activates the tasks lifecycle drive once the SDK's high-level
-  server can emit tasks (#49 built the grader + harness).
-- **`_meta` enforcement probe** — the last not-measured stateless signal (#32/#22).
+- **Cross-host distributed load** — `--distributed-workers N` fans the curve across real worker
+  processes/hosts (coordinator + `--worker-command` for remote), on #51's aggregation. [#74]
+
+## 🔭 Blocked on upstream SDK (requests drafted in [`docs/upstream/`](./docs/upstream/README.md))
+
+- **Live tasks probe** — needs a high-level task-emitting server (SEP-2663); grader + harness
+  already shipped (#49). [#75]
+- **`_meta` enforcement probe** — needs a client hook to send a request without the auto-stamped
+  `_meta`; the `C12` grader code already shipped (#32). [#76]
 
 ---
 

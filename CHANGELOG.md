@@ -3,6 +3,22 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.7.0] — 2026-10-24 · scale
+
+### Added
+- **Cross-host distributed load** — `--distributed-workers N` fans the load curve across N real
+  worker **processes** (vs #51's in-process async fleet), merging results through the existing
+  fleet aggregation. A coordinator launches workers via a command template
+  (`--worker-command 'ssh host -- python -m mcp_quality.perf.worker'`) — local by default,
+  remote with one flag. Falls back to a single run if every worker fails; `worker_mode`
+  (`process`/`async`/`single`) in metrics. (#74)
+
+### Notes
+- The other v0.7 items are deferred pending upstream SDK support, with ready-to-file requests
+  in [`docs/upstream/README.md`](docs/upstream/README.md): the live tasks-lifecycle drive (#75,
+  needs a high-level task-emitting server — SEP-2663) and `_meta` enforcement (#76, needs a
+  client hook to omit `_meta`). Their graders/harness are already shipped and tested.
+
 ## [0.6.0] — 2026-10-24 · research gap-closure
 
 Closes the gaps between the MCP pain points builders actually hit and what the suite
@@ -164,6 +180,7 @@ Also included (planned as the "v0.2" milestone, shipped in this first release):
   (OWASP MCP Top 10 mapping; why the `2026-07-28` stateless `server/discover` path is not
   yet implemented; the offline-token estimate).
 
+[0.7.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.7.0
 [0.6.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.6.0
 [0.5.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.5.0
 [0.4.0]: https://github.com/swarmproof/mcp-probe/releases/tag/v0.4.0
