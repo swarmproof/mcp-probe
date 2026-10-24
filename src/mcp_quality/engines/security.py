@@ -17,6 +17,7 @@ from mcp_quality.security.adapters import (
     suppress_false_positives,
 )
 from mcp_quality.security.authz import auth_block, scan_authorization
+from mcp_quality.security.path_traversal import scan_path_traversal
 from mcp_quality.security.patterns import (
     scan_dangerous_capabilities,
     scan_injection,
@@ -38,6 +39,8 @@ class SecurityEngine(EngineBase):
         findings += scan_secrets(ctx.surface)  # S2 → LLM02
         findings += scan_dangerous_capabilities(ctx.surface)  # S3 → LLM06
         findings += scan_authorization(ctx.surface)  # A1/A2/A3 → MCP07 (#48)
+        path_findings = scan_path_traversal(ctx.surface)  # S4 → MCP05 (#65)
+        findings += path_findings
 
         deep_notes: dict[str, str] = {}
         if getattr(ctx.config, "deep_security", False):
@@ -74,6 +77,7 @@ class SecurityEngine(EngineBase):
                 "by_owasp": by_owasp,
                 "deep_security": deep_status,
                 "authz": authz_status,
+                "path_traversal": len(path_findings),  # #65: unconstrained path-param tools
             },
         )
 
