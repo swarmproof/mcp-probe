@@ -50,16 +50,36 @@ $ mcp-quality run "python my_server.py" --legibility
 Two tools described *"Remove a record by id."* — a data-loss bug living in your tool
 *descriptions*, invisible to every test you have. mcp-quality catches it and writes the fix.
 
+<details>
+<summary><b>Table of contents</b></summary>
+
+- [Quickstart](#quickstart)
+- [Use it in CI](#use-it-in-ci)
+- [Use it from your coding agent](#use-it-from-your-coding-agent)
+- [The check families](#the-check-families)
+- [Where it fits](#where-it-fits)
+- [Commands](#commands)
+- [Leaderboard](#leaderboard)
+- [Part of the Swarm Proof toolkit](#part-of-the-swarm-proof-toolkit)
+- [Boundaries](#boundaries)
+- [Contributing](#contributing)
+- [Docs](#docs) · [License](#license)
+
+</details>
+
 ## Quickstart
 
 ```bash
-pip install mcp-quality
+pip install mcp-quality          # or: pipx install mcp-quality · uv tool install mcp-quality
 
 mcp-quality run "python my_server.py"                       # graded A–F report
 mcp-quality run "python my_server.py" --json --fail-under B # CI gate (exit 1 if < B)
 mcp-quality static ./server.mcp.json                        # offline / air-gapped
 mcp-quality mcp                                             # run AS an MCP server (agent-native)
 ```
+
+> **Requires Python 3.11+.** The CI-critical fast path (Contract + Cost + Safety) has no
+> model, key, or network dependency beyond your own server.
 
 **Agent-native:** point your coding agent at `mcp-quality mcp` (an MCP server over stdio) and
 it calls `grade_server` / `explain_findings` / `propose_fixes` directly — grade the server it's
@@ -229,6 +249,23 @@ Honest over impressive — what mcp-quality **doesn't** claim:
   Top 10; defer deep analysis to the specialists via `--deep-security`.
 - **Non-canonical scores are marked as such** — cloud/consensus model scores carry a flag;
   the canonical scorer is a pinned local model at temp 0.
+
+## Contributing
+
+Contributions are welcome — a low grade on a public server is an invitation to a PR, not a
+verdict. Get set up:
+
+```bash
+git clone https://github.com/swarmproof/mcp-probe && cd mcp-probe
+python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/pytest -m "not live_llm" -q     # full suite
+.venv/bin/ruff check src/ tests/          # lint
+.venv/bin/mypy src/                        # types
+```
+
+A new check family is just a pure `CheckEngine` you register — see
+[ARCHITECTURE.md](./docs/ARCHITECTURE.md) (ADR-001) and [CONTRIBUTING.md](./CONTRIBUTING.md)
+for the full guide and the house conventions.
 
 ## Docs
 
