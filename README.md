@@ -7,9 +7,9 @@
 **Lint, contract-test, benchmark, and load-test your MCP server before you ship it —
 the `pytest` + `lighthouse` for the tools your agents depend on.**
 
+[![CI](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/mcp-quality.svg)](https://pypi.org/project/mcp-quality/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-quality.svg)](https://pypi.org/project/mcp-quality/)
-[![CI](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml)
 [![License](https://img.shields.io/pypi/l/mcp-quality.svg)](./LICENSE)
 
 </div>
@@ -70,7 +70,9 @@ Two tools described *"Remove a record by id."* — a data-loss bug living in you
 ## Quickstart
 
 ```bash
-pip install mcp-quality          # or: pipx install mcp-quality · uv tool install mcp-quality
+pip install mcp-quality              # fast path: Contract · Cost · Performance · Security · Safety
+pip install "mcp-quality[llm]"       # + Legibility (the agent-comprehension probe)
+# also installable with:  pipx install mcp-quality  ·  uv tool install mcp-quality
 
 mcp-quality run "python my_server.py"                       # graded A–F report
 mcp-quality run "python my_server.py" --json --fail-under B # CI gate (exit 1 if < B)
@@ -158,8 +160,26 @@ touches your files, so applying a fix is always the agent's (and your) call. Sam
 | **Security-lite** | injection / secrets / dangerous-capability lints mapped to the OWASP MCP Top 10; `--deep-security` integrates the specialists | zero-LLM + opt-in |
 | **Safety-Contract** | are the tool annotations *true*? — a `delete_*` tool marked `readOnlyHint` (bypasses host confirmation), missing hints, retry-unsafe writes | zero-LLM |
 
-Overall score = a weighted, **versioned rubric**; measured families are renormalized, and
-an F in any family hard-gates the grade to C.
+### How the score works
+
+A grading tool is only worth as much as the number it prints is trustworthy, so the rubric
+is explicit and versioned — not a black box.
+
+| Family | Contract | Cost | Legibility | Performance | Security-lite | Safety-Contract |
+|--------|:--------:|:----:|:----------:|:-----------:|:-------------:|:---------------:|
+| **Weight** | 20% | **30%** | 25% | 15% | 10% | 10% |
+
+- **Weighted mean → letter grade.** Cost carries the most weight because it's paid on *every*
+  turn. Weights are relative proportions; see [`docs/PRD.md` §7](./docs/PRD.md) for the rationale.
+- **Only *measured* families count.** A family you didn't run (e.g. Legibility with no model) is
+  dropped and the remaining weights are renormalized — never scored as `0` ([ADR-006](./docs/ARCHITECTURE.md)).
+- **Hard-gate.** An **F in any family caps the overall grade at C** — no A-grade server with a
+  broken contract or a lying annotation.
+- **Deterministic & provenanced.** The fast path is **byte-identical** for identical input
+  (golden-file tested). Legibility is deterministic only under a fixed `(model, seed, goal-set)`
+  and is cached; performance is asserted as *invariants* (`p50 ≤ p95 ≤ p99`), never absolute ms.
+  Every report and badge carries `rubric_version` (currently `2026.08.1`) so grades compare
+  across releases.
 
 ### Reliability overlay — `--reliability K`
 
@@ -207,7 +227,9 @@ which pioneered token-tax + tool-confusion scoring (we borrow its leave-one-out 
 
 ## Leaderboard
 
-mcp-quality run against real public MCP servers ([full table](./docs/leaderboard.md)):
+mcp-quality run against real public MCP servers ([full table](./docs/leaderboard.md)). The gate
+is **dogfooded** — CI grades mcp-quality's own fixture servers every push: the good one must
+pass `--fail-under B`, the bloated one must fail `--fail-under A`.
 
 | Server | Grade | Toolset tokens |
 |--------|:-----:|---------------:|
