@@ -7,9 +7,9 @@
 **Lint, contract-test, benchmark, and load-test your MCP server before you ship it —
 the `pytest` + `lighthouse` for the tools your agents depend on.**
 
+[![CI](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/mcp-quality.svg)](https://pypi.org/project/mcp-quality/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-quality.svg)](https://pypi.org/project/mcp-quality/)
-[![CI](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml)
 [![License](https://img.shields.io/pypi/l/mcp-quality.svg)](./LICENSE)
 
 </div>
@@ -17,9 +17,16 @@ the `pytest` + `lighthouse` for the tools your agents depend on.**
 ---
 
 Security scanners tell you if your MCP server is *dangerous*. **mcp-quality tells you if
-it's *good* — and blocks the merge when it gets worse.** It grades any server across five
-dimensions into a single **MCP Quality Score**, runs deterministically in CI with no LLM
-and no key, and prints a badge.
+it's *good* — and keeps it that way.** It grades any server across **six check families**
+into a single **MCP Quality Score**, ending in one pass/fail **verdict** with the fix for
+each issue.
+
+**Use it two ways:**
+- **As a CI gate** — deterministic, no LLM and no key; blocks the merge when quality
+  regresses, and prints a README badge.
+- **As an MCP server your coding agent calls** — add `mcp-quality` to Claude Code / Cursor
+  and it grades, explains, and proposes fixes for the server you're building, in the agent's
+  own loop (`grade_server` · `explain_findings` · `propose_fixes`). Same engine; agent-native.
 
 ```console
 $ mcp-quality run "python my_server.py" --legibility
@@ -43,15 +50,43 @@ $ mcp-quality run "python my_server.py" --legibility
 Two tools described *"Remove a record by id."* — a data-loss bug living in your tool
 *descriptions*, invisible to every test you have. mcp-quality catches it and writes the fix.
 
+<details>
+<summary><b>Table of contents</b></summary>
+
+- [Quickstart](#quickstart)
+- [Use it in CI](#use-it-in-ci)
+- [Use it from your coding agent](#use-it-from-your-coding-agent)
+- [The check families](#the-check-families)
+- [Where it fits](#where-it-fits)
+- [Commands](#commands)
+- [Leaderboard](#leaderboard)
+- [Part of the Swarm Proof toolkit](#part-of-the-swarm-proof-toolkit)
+- [Boundaries](#boundaries)
+- [Contributing](#contributing)
+- [Docs](#docs) · [License](#license)
+
+</details>
+
 ## Quickstart
 
 ```bash
-pip install mcp-quality
+pip install mcp-quality              # fast path: Contract · Cost · Performance · Security · Safety
+pip install "mcp-quality[llm]"       # + Legibility (the agent-comprehension probe)
+# also installable with:  pipx install mcp-quality  ·  uv tool install mcp-quality
 
 mcp-quality run "python my_server.py"                       # graded A–F report
 mcp-quality run "python my_server.py" --json --fail-under B # CI gate (exit 1 if < B)
 mcp-quality static ./server.mcp.json                        # offline / air-gapped
+mcp-quality mcp                                             # run AS an MCP server (agent-native)
 ```
+
+> **Requires Python 3.11+.** The CI-critical fast path (Contract + Cost + Safety) has no
+> model, key, or network dependency beyond your own server.
+
+**Agent-native:** point your coding agent at `mcp-quality mcp` (an MCP server over stdio) and
+it calls `grade_server` / `explain_findings` / `propose_fixes` directly — grade the server it's
+building, get the findings with fixes, and apply them, all in its own loop. Read-only: it
+grades and proposes; it never writes your files.
 
 The zero-LLM **fast path** (Contract + Cost) is deterministic and needs no model, key, or
 network beyond your server. Add `--legibility --model ollama:qwen2.5-3b` for the
@@ -79,6 +114,41 @@ Commit a baseline with `mcp-quality snapshot "…"` and `--no-regressions` fails
 a commit silently breaks a tool or drops a score. `mcp-quality badge` emits an
 `mcp-quality: A` SVG + shields.io endpoint for your README.
 
+## Use it from your coding agent
+
+`mcp-quality mcp` runs the suite **as an MCP server** over stdio, so the agent writing your
+MCP server can grade and fix it in its own loop — no shelling out, no leaving the editor.
+
+Add it once. For **Claude Code**:
+
+```bash
+claude mcp add mcp-quality -- mcp-quality mcp
+```
+
+For **Cursor** (or any MCP client), add to `~/.cursor/mcp.json` (or `.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcp-quality": { "command": "mcp-quality", "args": ["mcp"] }
+  }
+}
+```
+
+Then the agent has three read-only tools:
+
+| Tool | What it returns |
+|------|-----------------|
+| `grade_server` | grade + verdict + findings for a live server (`target`) or a `tools/list` dump (`tools`) |
+| `explain_findings` | just the issues, each with its fix, most-severe first |
+| `propose_fixes` | clearer tool-description rewrites (returned, never written) |
+
+Typical loop: *"grade the server I'm building, then fix what it flags."* The agent calls
+`grade_server`, reads the findings with their remediations, edits your tool definitions, and
+re-grades — all in one turn. It's **read-only**: it grades and proposes rewrites but never
+touches your files, so applying a fix is always the agent's (and your) call. Same engine as
+`mcp-quality run`, so an agent's grade and a CI grade agree.
+
 ## The check families
 
 | Family | What it measures | Path |
@@ -90,8 +160,26 @@ a commit silently breaks a tool or drops a score. `mcp-quality badge` emits an
 | **Security-lite** | injection / secrets / dangerous-capability lints mapped to the OWASP MCP Top 10; `--deep-security` integrates the specialists | zero-LLM + opt-in |
 | **Safety-Contract** | are the tool annotations *true*? — a `delete_*` tool marked `readOnlyHint` (bypasses host confirmation), missing hints, retry-unsafe writes | zero-LLM |
 
-Overall score = a weighted, **versioned rubric**; measured families are renormalized, and
-an F in any family hard-gates the grade to C.
+### How the score works
+
+A grading tool is only worth as much as the number it prints is trustworthy, so the rubric
+is explicit and versioned — not a black box.
+
+| Family | Contract | Cost | Legibility | Performance | Security-lite | Safety-Contract |
+|--------|:--------:|:----:|:----------:|:-----------:|:-------------:|:---------------:|
+| **Weight** | 20% | **30%** | 25% | 15% | 10% | 10% |
+
+- **Weighted mean → letter grade.** Cost carries the most weight because it's paid on *every*
+  turn. Weights are relative proportions; see [`docs/PRD.md` §7](./docs/PRD.md) for the rationale.
+- **Only *measured* families count.** A family you didn't run (e.g. Legibility with no model) is
+  dropped and the remaining weights are renormalized — never scored as `0` ([ADR-006](./docs/ARCHITECTURE.md)).
+- **Hard-gate.** An **F in any family caps the overall grade at C** — no A-grade server with a
+  broken contract or a lying annotation.
+- **Deterministic & provenanced.** The fast path is **byte-identical** for identical input
+  (golden-file tested). Legibility is deterministic only under a fixed `(model, seed, goal-set)`
+  and is cached; performance is asserted as *invariants* (`p50 ≤ p95 ≤ p99`), never absolute ms.
+  Every report and badge carries `rubric_version` (currently `2026.08.1`) so grades compare
+  across releases.
 
 ### Reliability overlay — `--reliability K`
 
@@ -135,10 +223,13 @@ which pioneered token-tax + tool-confusion scoring (we borrow its leave-one-out 
 | `mcp-quality fix --legibility` | apply proposed description rewrites (`--apply` / `--pr`) |
 | `mcp-quality compare a.json b.json` | score-delta between two runs (sticky PR comment) |
 | `mcp-quality serve` | hosted scoring API for registries (`[registry]` extra) |
+| `mcp-quality mcp` | run AS an MCP server a coding agent calls (`grade_server` / `explain_findings` / `propose_fixes`) |
 
 ## Leaderboard
 
-mcp-quality run against real public MCP servers ([full table](./docs/leaderboard.md)):
+mcp-quality run against real public MCP servers ([full table](./docs/leaderboard.md)). The gate
+is **dogfooded** — CI grades mcp-quality's own fixture servers every push: the good one must
+pass `--fail-under B`, the bloated one must fail `--fail-under A`.
 
 | Server | Grade | Toolset tokens |
 |--------|:-----:|---------------:|
@@ -180,6 +271,23 @@ Honest over impressive — what mcp-quality **doesn't** claim:
   Top 10; defer deep analysis to the specialists via `--deep-security`.
 - **Non-canonical scores are marked as such** — cloud/consensus model scores carry a flag;
   the canonical scorer is a pinned local model at temp 0.
+
+## Contributing
+
+Contributions are welcome — a low grade on a public server is an invitation to a PR, not a
+verdict. Get set up:
+
+```bash
+git clone https://github.com/swarmproof/mcp-probe && cd mcp-probe
+python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/pytest -m "not live_llm" -q     # full suite
+.venv/bin/ruff check src/ tests/          # lint
+.venv/bin/mypy src/                        # types
+```
+
+A new check family is just a pure `CheckEngine` you register — see
+[ARCHITECTURE.md](./docs/ARCHITECTURE.md) (ADR-001) and [CONTRIBUTING.md](./CONTRIBUTING.md)
+for the full guide and the house conventions.
 
 ## Docs
 
