@@ -92,6 +92,41 @@ Commit a baseline with `mcp-quality snapshot "…"` and `--no-regressions` fails
 a commit silently breaks a tool or drops a score. `mcp-quality badge` emits an
 `mcp-quality: A` SVG + shields.io endpoint for your README.
 
+## Use it from your coding agent
+
+`mcp-quality mcp` runs the suite **as an MCP server** over stdio, so the agent writing your
+MCP server can grade and fix it in its own loop — no shelling out, no leaving the editor.
+
+Add it once. For **Claude Code**:
+
+```bash
+claude mcp add mcp-quality -- mcp-quality mcp
+```
+
+For **Cursor** (or any MCP client), add to `~/.cursor/mcp.json` (or `.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcp-quality": { "command": "mcp-quality", "args": ["mcp"] }
+  }
+}
+```
+
+Then the agent has three read-only tools:
+
+| Tool | What it returns |
+|------|-----------------|
+| `grade_server` | grade + verdict + findings for a live server (`target`) or a `tools/list` dump (`tools`) |
+| `explain_findings` | just the issues, each with its fix, most-severe first |
+| `propose_fixes` | clearer tool-description rewrites (returned, never written) |
+
+Typical loop: *"grade the server I'm building, then fix what it flags."* The agent calls
+`grade_server`, reads the findings with their remediations, edits your tool definitions, and
+re-grades — all in one turn. It's **read-only**: it grades and proposes rewrites but never
+touches your files, so applying a fix is always the agent's (and your) call. Same engine as
+`mcp-quality run`, so an agent's grade and a CI grade agree.
+
 ## The check families
 
 | Family | What it measures | Path |
