@@ -12,6 +12,8 @@ the `pytest` + `lighthouse` for the tools your agents depend on.**
 [![Python](https://img.shields.io/pypi/pyversions/mcp-quality.svg)](https://pypi.org/project/mcp-quality/)
 [![License](https://img.shields.io/pypi/l/mcp-quality.svg)](./LICENSE)
 
+<img src="docs/assets/demo.gif" alt="mcp-quality grading a server whose delete_record tool claims readOnlyHint=true: the Safety hard-gate caps the grade at C and the verdict is FAIL" width="100%">
+
 </div>
 
 ---
