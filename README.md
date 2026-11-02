@@ -72,8 +72,8 @@ Two tools described *"Remove a record by id."* — a data-loss bug living in you
 ## Quickstart
 
 ```bash
-pip install mcp-quality              # fast path: Contract · Cost · Performance · Security · Safety
-pip install "mcp-quality[llm]"       # + Legibility (the agent-comprehension probe)
+pip install mcp-quality              # core: every family except Legibility, no model needed
+pip install "mcp-quality[llm]"       # + Legibility (the agent-comprehension probe; needs a model)
 # also installable with:  pipx install mcp-quality  ·  uv tool install mcp-quality
 
 mcp-quality run "python my_server.py"                       # graded A–F report
@@ -82,16 +82,16 @@ mcp-quality static ./server.mcp.json                        # offline / air-gapp
 mcp-quality mcp                                             # run AS an MCP server (agent-native)
 ```
 
-> **Requires Python 3.11+.** The CI-critical fast path (Contract + Cost + Safety) has no
-> model, key, or network dependency beyond your own server.
+> **Requires Python 3.11+.** The CI-critical fast path has no model, key, or network
+> dependency beyond your own server.
 
 **Agent-native:** point your coding agent at `mcp-quality mcp` (an MCP server over stdio) and
 it calls `grade_server` / `explain_findings` / `propose_fixes` directly — grade the server it's
 building, get the findings with fixes, and apply them, all in its own loop. Read-only: it
 grades and proposes; it never writes your files.
 
-The zero-LLM **fast path** (Contract + Cost) is deterministic and needs no model, key, or
-network beyond your server. Add `--legibility --model ollama:qwen2.5-3b` for the
+The zero-LLM **fast path** (Contract + Cost) is the CI default — deterministic, no model, key,
+or network beyond your server. Add `--legibility --model ollama:qwen2.5-3b` for the
 disambiguation matrix, `--all` for every family, or `--deep-security` to fold in
 mcp-scan / Cisco findings.
 
