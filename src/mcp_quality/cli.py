@@ -75,6 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
     serve = sub.add_parser("serve", help="run the registry scoring API (needs the [registry] extra)")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8080)
+
+    # -- mcp (agentic-native: run mcp-quality AS an MCP server a coding agent calls) --
+    mcpsrv = sub.add_parser("mcp", help="run mcp-quality as an MCP server (grade/explain/propose tools)")
+    mcpsrv.add_argument("--transport", choices=["stdio", "streamable-http", "sse"], default="stdio")
     return p
 
 
@@ -230,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_compare(args)
     if args.command == "serve":
         return _cmd_serve(args)
+    if args.command == "mcp":
+        return _cmd_mcp(args)
     return _cmd_run(args)
 
 
@@ -242,6 +248,14 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         return int(ExitCode.PROBE_ERROR)
     print(f"mcp-quality: registry scoring API on http://{args.host}:{args.port}", file=sys.stderr)
     serve(host=args.host, port=args.port)
+    return int(ExitCode.OK)
+
+
+def _cmd_mcp(args: argparse.Namespace) -> int:
+    from mcp_quality.agent_server import serve_mcp
+
+    print(f"mcp-quality: MCP server (grade/explain/propose) on {args.transport}", file=sys.stderr)
+    serve_mcp(transport=args.transport)
     return int(ExitCode.OK)
 
 
