@@ -1,0 +1,15 @@
+{
+  "name": "mcp-quality",
+  "description": "The quality suite for MCP servers, as an MCP server and a skill for your coding agent.",
+  "owner": {
+    "name": "Swarm Proof",
+    "url": "https://github.com/swarmproof"
+  },
+  "plugins": [
+    {
+      "name": "mcp-quality",
+      "source": "./",
+      "description": "The mcp-quality MCP server (grade_server, explain_findings, propose_fixes) and the skill that runs the check, fix and re-check loop."
+    }
+  ]
+}

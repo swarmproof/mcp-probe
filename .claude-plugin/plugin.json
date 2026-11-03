@@ -1,0 +1,29 @@
+{
+  "name": "mcp-quality",
+  "displayName": "mcp-quality",
+  "version": "0.8.0",
+  "description": "The quality suite for MCP servers. Verifies contract conformance, safety annotations, security surface, token cost, tool legibility and performance, and returns a pass/fail verdict with the fix for each blocker. Runs as an MCP server your coding agent calls.",
+  "author": {
+    "name": "Swarm Proof",
+    "url": "https://github.com/swarmproof"
+  },
+  "homepage": "https://github.com/swarmproof/mcp-probe",
+  "repository": "https://github.com/swarmproof/mcp-probe",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "quality",
+    "conformance",
+    "verdict",
+    "agent"
+  ],
+  "mcpServers": {
+    "mcp-quality": {
+      "command": "uvx",
+      "args": [
+        "mcp-quality",
+        "mcp"
+      ]
+    }
+  }
+}
