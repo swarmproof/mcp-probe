@@ -2,100 +2,101 @@
 
 # mcp-quality
 
-### The CI quality suite for MCP servers
+### The quality suite for MCP servers
 
-**Lint, contract-test, benchmark, and load-test your MCP server before you ship it —
-the `pytest` + `lighthouse` for the tools your agents depend on.**
+**Lint, contract-test, benchmark, and load-test your MCP server before you ship it, from
+your coding agent or your CI. One pass/fail verdict, with the fix for each blocker.**
 
 [![CI](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/swarmproof/mcp-probe/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/mcp-quality.svg)](https://pypi.org/project/mcp-quality/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-quality.svg)](https://pypi.org/project/mcp-quality/)
 [![License](https://img.shields.io/pypi/l/mcp-quality.svg)](./LICENSE)
 
-<img src="docs/assets/demo.gif" alt="mcp-quality grading a server whose delete_record tool claims readOnlyHint=true: the Safety hard-gate caps the grade at C and the verdict is FAIL" width="100%">
-
 </div>
 
 ---
 
-Security scanners tell you if your MCP server is *dangerous*. **mcp-quality tells you if
-it's *good* — and keeps it that way.** It grades any server across **six check families**
-into a single **MCP Quality Score**, ending in one pass/fail **verdict** with the fix for
-each issue.
+Security scanners tell you whether an MCP server is *dangerous*. mcp-quality tells you
+whether it is **good**. It connects to the server, exercises its tools, and verifies it across
+six families: **Contract** (schemas, output shape, determinism, error recovery, spec
+conformance), **Cost** (what the toolset costs on every turn), **Legibility** (can an agent
+pick the right tool), **Performance** (under concurrent callers), **Security** (OWASP MCP
+basics) and **Safety** (do the annotations tell the truth). The result is one **verdict**, pass
+or fail, with the **fix for each blocker**. The letter grade is the badge, not the product.
 
-**Use it two ways:**
-- **As a CI gate** — deterministic, no LLM and no key; blocks the merge when quality
-  regresses, and prints a README badge.
-- **As an MCP server your coding agent calls** — add `mcp-quality` to Claude Code / Cursor
-  and it grades, explains, and proposes fixes for the server you're building, in the agent's
-  own loop (`grade_server` · `explain_findings` · `propose_fixes`). Same engine; agent-native.
+## Tell your agent
 
-```console
-$ mcp-quality run "python my_server.py" --legibility
+> Check the MCP server in this repo with mcp-quality and fix what fails.
 
-  MCP Quality Score  67   Grade D    ⚠ hard-gate: 'legibility' capped the grade at C
+Your agent connects mcp-quality to the server, reads the verdict and the blockers, edits the
+tool definitions, re-checks until it passes, and reports what changed. mcp-quality itself
+never writes your files: it checks and proposes, your agent edits.
 
-  Cost         A   100   122 toolset tokens; $0.0004/task
-  Legibility   F     0   50% right-tool selection; archive_record⇄delete_record 100%
-  Contract     A   100   2 tools conform
+## Install, once
 
-  Disambiguation matrix  (row = correct tool · cell = % of times chosen)
-  ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┓
-  ┃ correct ↓ / chose → ┃ delete ┃ archiv ┃
-  ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━┩
-  │ delete_record       │   100% │      · │
-  │ archive_record      │   100% │     0% │   ← agents pick delete when archive was right
-  └─────────────────────┴────────┴────────┘
-  ↳ proposed rewrite: "Move a record to the archive (reversible); use delete_record to remove permanently."
+**Claude Code**, as a plugin (the MCP server plus the skill that runs the loop):
+
+```
+/plugin marketplace add swarmproof/mcp-probe
+/plugin install mcp-quality@mcp-quality
 ```
 
-Two tools described *"Remove a record by id."* — a data-loss bug living in your tool
-*descriptions*, invisible to every test you have. mcp-quality catches it and writes the fix.
-
-<details>
-<summary><b>Table of contents</b></summary>
-
-- [Quickstart](#quickstart)
-- [Use it in CI](#use-it-in-ci)
-- [Use it from your coding agent](#use-it-from-your-coding-agent)
-- [The check families](#the-check-families)
-- [Where it fits](#where-it-fits)
-- [Commands](#commands)
-- [Leaderboard](#leaderboard)
-- [Part of the Swarm Proof toolkit](#part-of-the-swarm-proof-toolkit)
-- [Boundaries](#boundaries)
-- [Contributing](#contributing)
-- [Docs](#docs) · [License](#license)
-
-</details>
-
-## Quickstart
+**Cursor, Codex, Copilot, Gemini CLI, OpenCode** and the other agents the
+[skills CLI](https://github.com/vercel-labs/skills) supports get the skill with:
 
 ```bash
-pip install mcp-quality              # core: every family except Legibility, no model needed
-pip install "mcp-quality[llm]"       # + Legibility (the agent-comprehension probe; needs a model)
-# also installable with:  pipx install mcp-quality  ·  uv tool install mcp-quality
-
-mcp-quality run "python my_server.py"                       # graded A–F report
-mcp-quality run "python my_server.py" --json --fail-under B # CI gate (exit 1 if < B)
-mcp-quality static ./server.mcp.json                        # offline / air-gapped
-mcp-quality mcp                                             # run AS an MCP server (agent-native)
+npx skills add swarmproof/mcp-probe
 ```
 
-> **Requires Python 3.11+.** The CI-critical fast path has no model, key, or network
-> dependency beyond your own server.
+then register the server in the agent's MCP config:
 
-**Agent-native:** point your coding agent at `mcp-quality mcp` (an MCP server over stdio) and
-it calls `grade_server` / `explain_findings` / `propose_fixes` directly — grade the server it's
-building, get the findings with fixes, and apply them, all in its own loop. Read-only: it
-grades and proposes; it never writes your files.
+```json
+{ "mcpServers": { "mcp-quality": { "command": "uvx", "args": ["mcp-quality", "mcp"] } } }
+```
 
-The zero-LLM **fast path** (Contract + Cost) is the CI default — deterministic, no model, key,
-or network beyond your server. Add `--legibility --model ollama:qwen2.5-3b` for the
-disambiguation matrix, `--all` for every family, or `--deep-security` to fold in
-mcp-scan / Cisco findings.
+Needs [`uv`](https://docs.astral.sh/uv/) and Python 3.11+. No API key. The default checks
+run without a model; the agent-comprehension probe behind `propose_fixes` uses a local one
+(for example `ollama:qwen2.5-3b`).
 
-## Use it in CI
+## What it verifies
+
+| Verified | Check | Family |
+|---|---|---|
+| tool annotations are true: a `delete_*` tool is not marked read-only | `SC2-annotation-untrue` | Safety |
+| a successful result is a real result, not an error in disguise or an empty payload | `C13-silent-failure` | Contract |
+| errors say what to change and whether to retry | `C11-error-unactionable` | Contract |
+| an agent can tell neighbouring tools apart and picks the right one | the disambiguation matrix and `L2-confusion`, with a proposed rewrite | Legibility |
+| the toolset stays below the tool-count selection cliff | `L8-tool-overload` | Legibility |
+| the toolset's per-turn token cost and each tool's share of it | toolset token weight, per-tool share, $-per-task | Cost |
+| the server behaves the same across MCP clients | `C14-client-compat` | Contract |
+| path-like parameters are constrained | `S4-path-traversal-surface` | Security |
+| the server conforms to the 2026-07-28 stateless revision | `C12-*` stateless conformance | Contract |
+| latency, stable concurrency and connection hygiene under concurrent agents | p50/p95/p99, max stable concurrency, leak detection | Performance |
+
+Per-family detail is under [The check families](#the-check-families).
+
+## What the agent gets back
+
+| Tool | Returns |
+|------|---------|
+| `grade_server` | the verdict and its blockers, each with the fix, then every finding and the per-family scores |
+| `explain_findings` | only the findings, most severe first, each with its remediation |
+| `propose_fixes` | rewritten descriptions for confusable or unclear tools (returned, never written) |
+
+All three accept a live `target` (a stdio command or an http URL) or an offline `tools/list`
+dump. They are read-only, and destructive tools are skipped unless allowed.
+
+## Also a CI gate
+
+The same engine runs from the command line. Its fast path is deterministic and needs no
+model, key or network beyond your own server, so it can gate a merge.
+
+```bash
+pip install mcp-quality
+mcp-quality run "python my_server.py" --fail-under B --no-regressions   # exit 1 on FAIL or regression
+mcp-quality static ./server.mcp.json                                     # offline / air-gapped
+mcp-quality badge "python my_server.py" --out badge.svg                   # README badge
+```
 
 ```yaml
 # .github/workflows/mcp-quality.yml
@@ -113,43 +114,28 @@ jobs:
 ```
 
 Commit a baseline with `mcp-quality snapshot "…"` and `--no-regressions` fails the PR when
-a commit silently breaks a tool or drops a score. `mcp-quality badge` emits an
-`mcp-quality: A` SVG + shields.io endpoint for your README.
+a commit silently breaks a tool or drops a score. Add `--legibility --model ollama:qwen2.5-3b`
+for the disambiguation matrix, `--all` for every family, or `--deep-security` to fold in
+mcp-scan / Cisco findings. `mcp-quality mcp` is the same server the plugin runs.
 
-## Use it from your coding agent
+<details>
+<summary><b>Table of contents</b></summary>
 
-`mcp-quality mcp` runs the suite **as an MCP server** over stdio, so the agent writing your
-MCP server can grade and fix it in its own loop — no shelling out, no leaving the editor.
+- [Tell your agent](#tell-your-agent)
+- [Install, once](#install-once)
+- [What it verifies](#what-it-verifies)
+- [What the agent gets back](#what-the-agent-gets-back)
+- [Also a CI gate](#also-a-ci-gate)
+- [The check families](#the-check-families)
+- [Where it fits](#where-it-fits)
+- [Commands](#commands)
+- [Leaderboard](#leaderboard)
+- [Part of the Swarm Proof toolkit](#part-of-the-swarm-proof-toolkit)
+- [Boundaries](#boundaries)
+- [Contributing](#contributing)
+- [Docs](#docs) · [License](#license)
 
-Add it once. For **Claude Code**:
-
-```bash
-claude mcp add mcp-quality -- mcp-quality mcp
-```
-
-For **Cursor** (or any MCP client), add to `~/.cursor/mcp.json` (or `.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "mcp-quality": { "command": "mcp-quality", "args": ["mcp"] }
-  }
-}
-```
-
-Then the agent has three read-only tools:
-
-| Tool | What it returns |
-|------|-----------------|
-| `grade_server` | grade + verdict + findings for a live server (`target`) or a `tools/list` dump (`tools`) |
-| `explain_findings` | just the issues, each with its fix, most-severe first |
-| `propose_fixes` | clearer tool-description rewrites (returned, never written) |
-
-Typical loop: *"grade the server I'm building, then fix what it flags."* The agent calls
-`grade_server`, reads the findings with their remediations, edits your tool definitions, and
-re-grades — all in one turn. It's **read-only**: it grades and proposes rewrites but never
-touches your files, so applying a fix is always the agent's (and your) call. Same engine as
-`mcp-quality run`, so an agent's grade and a CI grade agree.
+</details>
 
 ## The check families
 
@@ -225,7 +211,7 @@ which pioneered token-tax + tool-confusion scoring (we borrow its leave-one-out 
 | `mcp-quality fix --legibility` | apply proposed description rewrites (`--apply` / `--pr`) |
 | `mcp-quality compare a.json b.json` | score-delta between two runs (sticky PR comment) |
 | `mcp-quality serve` | hosted scoring API for registries (`[registry]` extra) |
-| `mcp-quality mcp` | run AS an MCP server a coding agent calls (`grade_server` / `explain_findings` / `propose_fixes`) |
+| `mcp-quality mcp` | the MCP server the plugin runs (`grade_server` / `explain_findings` / `propose_fixes`) |
 
 ## Leaderboard
 

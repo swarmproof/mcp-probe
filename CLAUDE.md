@@ -39,6 +39,7 @@ so they need the SDK installed in that env — always run via `.venv/bin/pytest`
 - `contract/`, `legibility/`, `security/`, `perf/`, `tokens.py` — engine-specific internals.
 - `scoring/` · `snapshot/` · `report/` · `handoff.py` · `trace.py` — aggregation & outputs.
 - `tests/servers/` — fixture MCP servers (the TEST-PLAN §2 matrix) + `dump.mcp.json`.
+- `agent_server.py` — the suite exposed as an MCP server (`mcp-quality mcp`); `.claude-plugin/` + `skills/mcp-quality/` package it as a Claude Code plugin and an agent skill.
 
 ## What mcp-quality is
 
