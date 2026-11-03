@@ -39,3 +39,25 @@ async def test_mcp_server_builds_and_exposes_the_three_tools():
 
     names = {t.name for t in await build_mcp_server().list_tools()}
     assert {"grade_server", "explain_findings", "propose_fixes"} <= names
+
+
+async def test_grade_payload_leads_with_verdict_and_blockers():
+    from mcp_quality.agent_server import _grade_payload
+
+    report = await _grade(target="", tools=_LYING, families=["safety"], model="")
+    payload = _grade_payload(report)
+    # the verdict and the ranked findings come before the grade and the per-family detail
+    assert list(payload)[:2] == ["verdict", "findings"]
+    assert payload["verdict"]["passed"] is False
+    assert [b["family"] for b in payload["verdict"]["blockers"]] == ["safety"]
+    assert payload["verdict"]["blockers"][0]["remediation"]
+    assert "overall" in payload and "families" in payload  # the grade and scores follow
+
+
+async def test_grade_payload_passes_a_clean_server():
+    from mcp_quality.agent_server import _grade_payload
+
+    report = await _grade(target="", tools=_GOOD, families=["contract", "cost", "safety"], model="")
+    payload = _grade_payload(report)
+    assert payload["verdict"]["passed"] is True
+    assert payload["verdict"]["blockers"] == []
