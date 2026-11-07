@@ -63,6 +63,10 @@ packages = ["src/mcp_quality"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# pytest-asyncio >=1.4.1 warns at configure time when this is unset, and filterwarnings
+# below turns that into a hard error. Every fixture here is sync and function-scoped, so
+# "function" (the upcoming default) changes nothing.
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 # `live_llm` runs the real pinned model to catch drift; excluded from the default/CI run
 # (TEST-PLAN §3, §9.7). Run with: pytest -m live_llm
