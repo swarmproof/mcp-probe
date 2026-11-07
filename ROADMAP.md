@@ -47,11 +47,12 @@ handoff seed · a registry scoring API (`mcp-quality serve`) · read-only by def
 
 ## 📍 Where we are now
 
-- **Live on PyPI** (`mcp-quality 0.7.0`), published via trusted publishing — cross-host
-  distributed load on top of the v0.6 research gap-closure, on **MCP SDK v2**.
+- **Live on PyPI** (`mcp-quality 0.8.0`), published via trusted publishing — the agent-native
+  interface (the suite as an MCP server, a Claude Code plugin and an agent skill) on top of the
+  v0.7 scale work, on **MCP SDK v2**.
 - **Six scored families** (Contract · Cost · Legibility · Performance · Security-lite ·
   Safety-Contract) plus an **experimental** spec-surface family, all behind one rubric.
-- **Green CI** across Python 3.11/3.12/3.13 — 328 tests (unit · component · integration · E2E
+- **Green CI** across Python 3.11/3.12/3.13 — 335 tests (unit · component · integration · E2E
   over stdio + HTTP/SSE), plus opt-in `live_llm` and `deep_security` suites.
 - **Validated end-to-end against real servers** — a public [leaderboard](./docs/leaderboard.md)
   of reference MCP servers, and a live authenticated production run.
@@ -123,6 +124,14 @@ Closing the gaps between the MCP pain points builders actually hit and what the 
 
 - **Cross-host distributed load** — `--distributed-workers N` fans the curve across real worker
   processes/hosts (coordinator + `--worker-command` for remote), on #51's aggregation. [#74]
+
+## ✅ Shipped — v0.8: agent-native (`0.8.0`)
+
+- **The suite as an MCP server** — `mcp-quality mcp`: `grade_server` / `explain_findings` /
+  `propose_fixes`, read-only, same engine as `run`. [#83]
+- **Claude Code plugin + agent skill** — one-line install for Claude Code (`/plugin`) and for the
+  agents the skills CLI supports (`npx skills add`); the skill runs check → fix → re-check. [#85]
+- **Verdict-first tool output** — the verdict and each blocker's fix come before the grade. [#85]
 
 ## 🔭 Blocked on upstream SDK (requests drafted in [`docs/upstream/`](./docs/upstream/README.md))
 
