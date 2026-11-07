@@ -19,7 +19,7 @@ from typing import Any
 
 from mcp_quality.config import ProbeConfig
 from mcp_quality.pipeline import run_probe
-from mcp_quality.report import report_to_dict
+from mcp_quality.report import quality_verdict, report_to_dict
 
 # Agent-loop default: the fast, keyless families + safety/security + offline legibility lints.
 # Performance (a load test) is opt-in via ``families`` — too heavy for a tight iterate loop.
@@ -55,6 +55,15 @@ def _findings(report: Any) -> list[dict[str, Any]]:
     ]
 
 
+def _grade_payload(report: Any) -> dict[str, Any]:
+    """What ``grade_server`` returns: the verdict and its blockers first, then the ranked
+    findings, then the full report (grade, scores, per-family detail). The verdict and the
+    fixes are the result an agent acts on; the grade is the summary."""
+    full = report_to_dict(report, include_meta=False)
+    verdict = full.pop("verdict", None) or quality_verdict(report)
+    return {"verdict": verdict, "findings": _findings(report), **full}
+
+
 def build_mcp_server() -> Any:
     """Construct the mcp-quality MCP server. Imported lazily so the base CLI needs no server deps."""
     from mcp.server.mcpserver import MCPServer
@@ -62,10 +71,13 @@ def build_mcp_server() -> Any:
     mcp = MCPServer("mcp-quality")
 
     @mcp.tool(description=(
-        "Grade an MCP server across the quality families and return the letter grade, the "
-        "pass/fail verdict, and all findings. Pass `target` (a stdio command or an http URL) "
-        "to grade a live server, or `tools` (a tools/list array) to grade offline. Optional "
-        "`families` and `model` (e.g. 'ollama:qwen2.5-3b' for the full legibility probe)."
+        "Verify an MCP server across the quality families (contract, cost, legibility, security, "
+        "safety; performance on request) and return the pass/fail verdict with the fix for each "
+        "blocker, then every finding (most severe first, each with "
+        "its remediation), then the per-family scores and grade. Pass `target` (a stdio command "
+        "or an http URL) to check a live server, or `tools` (a tools/list array) to check "
+        "offline. Optional `families` and `model` (e.g. 'ollama:qwen2.5-3b' for the full "
+        "legibility probe). Read-only: it never edits files."
     ))
     async def grade_server(
         target: str = "", tools: list[dict[str, Any]] | None = None,
@@ -75,11 +87,11 @@ def build_mcp_server() -> Any:
             report = await _grade(target, tools, families, model)
         except Exception as exc:
             return {"error": str(exc)}
-        return report_to_dict(report, include_meta=False)
+        return _grade_payload(report)
 
     @mcp.tool(description=(
-        "Return just the findings for a server (or tools/list dump), most-severe first, each "
-        "with its remediation — the actionable list to fix. Same inputs as grade_server."
+        "Return the verdict and just the findings for a server (or tools/list dump), most-severe "
+        "first, each with its remediation — the list to fix. Same inputs as grade_server."
     ))
     async def explain_findings(
         target: str = "", tools: list[dict[str, Any]] | None = None,
@@ -89,7 +101,11 @@ def build_mcp_server() -> Any:
             report = await _grade(target, tools, families, model)
         except Exception as exc:
             return {"error": str(exc)}
-        return {"grade": report.overall_grade, "findings": _findings(report)}
+        return {
+            "verdict": quality_verdict(report),
+            "findings": _findings(report),
+            "grade": report.overall_grade,
+        }
 
     @mcp.tool(description=(
         "Propose clearer tool-description rewrites for the legibility issues found (returned, "
