@@ -3,6 +3,25 @@
 All notable changes to mcp-quality are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.8.0] — 2026-11-07 · agent-native
+
+### Added
+- **mcp-quality as an MCP server** — `mcp-quality mcp` exposes the suite over stdio with three
+  read-only tools: `grade_server`, `explain_findings`, `propose_fixes`. Same engine and report as
+  `mcp-quality run`, so an agent's result and a CI result agree. (#83)
+- **Claude Code plugin and agent skill** — `.claude-plugin/` declares the server
+  (`uvx mcp-quality mcp`) and ships `skills/mcp-quality/SKILL.md`, the check, fix and re-check
+  procedure an agent follows. Install with `/plugin marketplace add swarmproof/mcp-probe` then
+  `/plugin install mcp-quality@mcp-quality`, or `npx skills add swarmproof/mcp-probe` for the
+  other agents the skills CLI supports. (#85)
+
+### Changed
+- `grade_server` returns the verdict and its blockers, each with the fix, then the ranked
+  findings, then the per-family scores and grade; `explain_findings` carries the verdict. (#85)
+- README leads with the agent install and the verdict; the CI gate has its own section. (#83, #85)
+- Test configuration sets `asyncio_default_fixture_loop_scope`, so pytest-asyncio 1.4.1 with
+  pytest 9.2 runs under the warnings-as-errors filter. (#84)
+
 ## [0.7.0] — 2026-10-24 · scale
 
 ### Added
